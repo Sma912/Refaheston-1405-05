@@ -107,6 +107,16 @@ export function CheckoutForm({
         return;
       }
 
+      try {
+        await fetch("/api/orders/notify-admin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: order.id }),
+        });
+      } catch {
+        // ثبت سفارش موفق است؛ اطلاع ادمین نباید checkout را متوقف کند
+      }
+
       clear();
       router.push(`/orders/success?id=${order.id}`);
     } catch {

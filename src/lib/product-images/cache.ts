@@ -539,9 +539,18 @@ async function resolveOnce(input: {
     }
 
     try {
-      const selected = await selectHamrahtelImage(brand, model);
-      if (selected?.url) {
-        remoteUrlCache.set(key, selected.url);
+      // Prefer catalog URL without downloading (faster on Vercel).
+      const fromCatalog = findCatalogImage(model);
+      let remoteUrl: string | null = null;
+      if (fromCatalog?.image && !isPromoImageUrl(fromCatalog.image)) {
+        remoteUrl = toDownloadableImageUrl(fromCatalog.image);
+      } else {
+        const selected = await selectHamrahtelImage(brand, model);
+        remoteUrl = selected?.url ?? null;
+      }
+
+      if (remoteUrl) {
+        remoteUrlCache.set(key, remoteUrl);
         return {
           entry: {
             key,
@@ -550,10 +559,10 @@ async function resolveOnce(input: {
             color: color ?? null,
             file: "",
             source: "hamrahtel",
-            sourceUrl: selected.url,
+            sourceUrl: remoteUrl,
             createdAt: new Date().toISOString(),
           },
-          publicUrl: selected.url,
+          publicUrl: remoteUrl,
           cached: false,
         };
       }

@@ -52,6 +52,15 @@ export interface Order {
   shipping_address: string;
   contact_phone: string;
   notes: string | null;
+  /** مبلغ نهایی فاکتور پس از تأیید ادمین */
+  confirmed_amount: number | null;
+  /** شماره پیگیری پرداخت بانکی */
+  payment_ref: string | null;
+  /** کد رهگیری ارسال */
+  tracking_number: string | null;
+  invoice_sent_at: string | null;
+  payment_confirmed_at: string | null;
+  shipped_at: string | null;
   created_at: string;
   updated_at: string;
 }

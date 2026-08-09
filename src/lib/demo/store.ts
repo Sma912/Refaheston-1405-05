@@ -10,6 +10,7 @@ import {
   DEMO_PRODUCTS,
   DEMO_USERS,
 } from "@/lib/demo/data";
+import { DEMO_STORE_SETTINGS, type StoreSettings } from "@/lib/store/defaults";
 import {
   applySyncToProductList,
   buildProductSyncPlan,
@@ -22,6 +23,7 @@ interface DemoStore {
   orders: Order[];
   users: Profile[];
   imports: ProductImport[];
+  settings: StoreSettings;
   seedVersion: number;
   setProducts: (products: Product[]) => void;
   upsertProducts: (products: Product[]) => void;
@@ -33,10 +35,13 @@ interface DemoStore {
   updateOrder: (id: string, patch: Partial<Order>) => void;
   setUserRole: (id: string, role: Profile["role"]) => void;
   addImport: (item: ProductImport) => void;
+  setSettings: (settings: StoreSettings) => void;
   reset: () => void;
 }
 
-const SEED_VERSION = 7;
+const SEED_VERSION = 9;
+
+const initialSettings: StoreSettings = { ...DEMO_STORE_SETTINGS };
 
 export const useDemoStore = create<DemoStore>()(
   persist(
@@ -45,6 +50,7 @@ export const useDemoStore = create<DemoStore>()(
       orders: DEMO_ORDERS,
       users: DEMO_USERS,
       imports: DEMO_IMPORTS,
+      settings: initialSettings,
       seedVersion: SEED_VERSION,
       setProducts: (products) => set({ products }),
       upsertProducts: (incoming) => {
@@ -113,12 +119,14 @@ export const useDemoStore = create<DemoStore>()(
           ),
         }),
       addImport: (item) => set({ imports: [item, ...get().imports] }),
+      setSettings: (settings) => set({ settings }),
       reset: () =>
         set({
           products: DEMO_PRODUCTS,
           orders: DEMO_ORDERS,
           users: DEMO_USERS,
           imports: DEMO_IMPORTS,
+          settings: initialSettings,
           seedVersion: SEED_VERSION,
         }),
     }),
@@ -130,6 +138,7 @@ export const useDemoStore = create<DemoStore>()(
         orders: DEMO_ORDERS,
         users: DEMO_USERS,
         imports: DEMO_IMPORTS,
+        settings: initialSettings,
         seedVersion: SEED_VERSION,
       }),
     }

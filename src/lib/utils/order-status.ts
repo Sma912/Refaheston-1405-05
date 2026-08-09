@@ -21,7 +21,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
 };
 
 export const ORDER_SUCCESS_MESSAGE =
-  "بعد از تأیید موجودی و قیمت، مراحل پرداخت از طریق اپلیکیشن بله برای شما فعال و نهایی می‌شود. لطفاً صبور باشید.";
+  "سفارش شما ثبت شد و برای بررسی موجودی و قیمت به ادمین ارسال شد. پس از تأیید، فاکتور و اطلاعات پرداخت از طریق بله برایتان می‌آید.";
 
 export const ALL_ORDER_STATUSES = Object.keys(
   ORDER_STATUS_LABELS

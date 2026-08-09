@@ -1,12 +1,21 @@
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutDashboard, Package, ShoppingBag, Users, FileUp, ClipboardList } from "lucide-react";
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingBag,
+  Users,
+  FileUp,
+  ClipboardList,
+  Settings,
+} from "lucide-react";
 
 const links = [
   { href: "/admin", label: "داشبورد", icon: LayoutDashboard },
   { href: "/admin/products", label: "محصولات", icon: Package },
   { href: "/admin/products/import", label: "ورود کالا", icon: FileUp },
   { href: "/admin/orders", label: "سفارش‌ها", icon: ShoppingBag },
+  { href: "/admin/settings", label: "تنظیمات فروشگاه", icon: Settings },
   { href: "/admin/users", label: "کاربران", icon: Users },
   { href: "/admin/imports", label: "لاگ واردات", icon: ClipboardList },
 ];

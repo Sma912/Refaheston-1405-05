@@ -79,6 +79,7 @@ export function SiteHeader() {
 
   const nav = [
     { href: "/", label: "محصولات" },
+    { href: "/about", label: "درباره ما" },
     { href: "/orders", label: "سفارش‌های من" },
     { href: "/profile", label: "پروفایل" },
   ];

@@ -63,6 +63,13 @@ export default async function OrderDetailPage({ params }: Props) {
         </p>
       )}
 
+      {o.status === "awaiting_payment" && (
+        <p className="rounded-2xl bg-orange-50 px-4 py-3 text-sm leading-7 text-orange-900">
+          فاکتور و اطلاعات پرداخت از طریق بله برایتان ارسال شده است. پس از
+          واریز، رسید را در بله بفرستید.
+        </p>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm">
           <h2 className="mb-3 font-semibold">اطلاعات سفارش</h2>
@@ -74,13 +81,25 @@ export default async function OrderDetailPage({ params }: Props) {
             <div className="flex justify-between gap-2">
               <dt className="text-slate-500">مبلغ</dt>
               <dd className="font-bold text-[var(--brand-red)]">
-                {formatPriceToman(o.total_amount)}
+                {formatPriceToman(o.confirmed_amount ?? o.total_amount)}
               </dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-slate-500">تماس</dt>
               <dd dir="ltr">{o.contact_phone}</dd>
             </div>
+            {o.payment_ref && (
+              <div className="flex justify-between gap-2">
+                <dt className="text-slate-500">پیگیری پرداخت</dt>
+                <dd dir="ltr">{o.payment_ref}</dd>
+              </div>
+            )}
+            {o.tracking_number && (
+              <div className="flex justify-between gap-2">
+                <dt className="text-slate-500">رهگیری ارسال</dt>
+                <dd dir="ltr">{o.tracking_number}</dd>
+              </div>
+            )}
           </dl>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm">
