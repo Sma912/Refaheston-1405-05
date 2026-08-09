@@ -66,7 +66,9 @@ export default async function OrdersPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <OrderStatusBadge status={order.status} />
                 <span className="font-bold text-[var(--brand-red)]">
-                  {formatPriceToman(order.confirmed_amount ?? order.total_amount)}
+                  {formatPriceToman(order.confirmed_amount != null
+                    ? (order.confirmed_amount + (order.shipping_amount ?? 0))
+                    : order.total_amount)}
                 </span>
               </div>
             </Link>

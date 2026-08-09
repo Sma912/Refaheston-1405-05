@@ -20,6 +20,7 @@ const ALLOWED_KEYS = [
   "ecommerce_license_number",
   "ecommerce_license_url",
   "store_address",
+  "shipping_cost",
   "footer_tagline",
   "about_content",
   "terms_content",
@@ -90,12 +91,19 @@ export async function PUT(req: Request) {
     };
     let fieldCount = 0;
     for (const key of ALLOWED_KEYS) {
-      if (key in body) {
-        const value = body[key];
+      if (!(key in body)) continue;
+      const value = body[key];
+      if (key === "shipping_cost") {
+        const n =
+          typeof value === "number"
+            ? value
+            : Number(String(value ?? "").replace(/[^\d]/g, ""));
+        updatePayload[key] = Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
+      } else {
         updatePayload[key] =
           typeof value === "string" ? value.trim() || null : null;
-        fieldCount += 1;
       }
+      fieldCount += 1;
     }
 
     if (fieldCount === 0) {

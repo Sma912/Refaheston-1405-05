@@ -48,3 +48,28 @@ body {
 .animate-fade-up-delay {
   animation: fade-up 0.55s ease-out 0.08s both;
 }
+
+@media print {
+  body {
+    background: white !important;
+  }
+
+  header,
+  aside,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  #invoice-document,
+  [id="invoice-document"] {
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+

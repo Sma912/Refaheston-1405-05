@@ -1,12 +1,23 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/demo/config";
-import { DEMO_ORDERS, DEMO_ORDER_ITEMS } from "@/lib/demo/data";
+import {
+  DEMO_ORDERS,
+  DEMO_ORDER_ITEMS,
+  DEMO_USERS,
+} from "@/lib/demo/data";
+import { DEMO_STORE_SETTINGS } from "@/lib/store/defaults";
+import { getStoreSettings } from "@/lib/store/settings";
+import { expireOverdueAwaitingOrders } from "@/lib/bale/order-flow";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { InvoiceActions } from "@/components/orders/invoice-actions";
+import { OrderNotesHistory } from "@/components/orders/order-notes-history";
+import { DeadlineCountdown } from "@/components/orders/deadline-countdown";
 import { formatPriceToman } from "@/lib/utils/price";
 import { formatJalaliDate } from "@/lib/utils/date";
 import { ORDER_SUCCESS_MESSAGE } from "@/lib/utils/order-status";
-import type { Order, OrderItem } from "@/types/database";
+import { orderPayable, orderShipping, orderSubtotal } from "@/lib/orders/totals";
+import type { Order, OrderItem, OrderNote } from "@/types/database";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -17,11 +28,23 @@ export default async function OrderDetailPage({ params }: Props) {
 
   let o: Order | null = null;
   let orderItems: OrderItem[] = [];
+  let orderNotes: OrderNote[] = [];
+  let customerName: string | null = null;
+  let settings = DEMO_STORE_SETTINGS;
 
   if (isDemoMode()) {
     o = DEMO_ORDERS.find((x) => x.id === id) ?? null;
     orderItems = DEMO_ORDER_ITEMS.filter((i) => i.order_id === id);
+    customerName =
+      DEMO_USERS.find((u) => u.id === o?.user_id)?.full_name ?? null;
+    settings = DEMO_STORE_SETTINGS;
   } else {
+    try {
+      await expireOverdueAwaitingOrders();
+    } catch (err) {
+      console.error("expire on order detail", err);
+    }
+
     const supabase = await createClient();
     const {
       data: { user },
@@ -36,14 +59,36 @@ export default async function OrderDetailPage({ params }: Props) {
       .maybeSingle();
     o = (order as Order) ?? null;
 
-    const { data: items } = await supabase
-      .from("order_items")
-      .select("*")
-      .eq("order_id", id);
+    const [{ data: items }, { data: notes }, { data: profile }, storeSettings] =
+      await Promise.all([
+        supabase.from("order_items").select("*").eq("order_id", id),
+        supabase
+          .from("order_notes")
+          .select("*")
+          .eq("order_id", id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("profiles")
+          .select("full_name, phone")
+          .eq("id", user.id)
+          .maybeSingle(),
+        getStoreSettings(),
+      ]);
     orderItems = (items as OrderItem[]) ?? [];
+    orderNotes = (notes as OrderNote[]) ?? [];
+    customerName = profile?.full_name ?? null;
+    settings = storeSettings;
   }
 
   if (!o) notFound();
+
+  const showInvoice =
+    Boolean(o.invoice_sent_at) ||
+    o.status === "awaiting_payment" ||
+    o.status === "paid" ||
+    o.status === "preparing" ||
+    o.status === "shipped" ||
+    o.status === "delivered";
 
   return (
     <div className="space-y-6">
@@ -64,9 +109,22 @@ export default async function OrderDetailPage({ params }: Props) {
       )}
 
       {o.status === "awaiting_payment" && (
-        <p className="rounded-2xl bg-orange-50 px-4 py-3 text-sm leading-7 text-orange-900">
-          فاکتور و اطلاعات پرداخت از طریق بله برایتان ارسال شده است. پس از
-          واریز، رسید را در بله بفرستید.
+        <div className="space-y-2">
+          <p className="rounded-2xl bg-orange-50 px-4 py-3 text-sm leading-7 text-orange-900">
+            فاکتور صادر شده است. لطفاً ظرف <strong>۱۰ دقیقه</strong> واریز کنید و
+            رسید را در بله بفرستید. در غیر این صورت سفارش لغو می‌شود.
+          </p>
+          <DeadlineCountdown
+            label="زمان باقی‌مانده برای واریز و ارسال رسید"
+            deadlineAt={o.payment_deadline_at}
+          />
+        </div>
+      )}
+
+      {o.status === "cancelled" && (
+        <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm leading-7 text-rose-900">
+          این سفارش لغو شده است.
+          {o.notes ? ` دلیل: ${o.notes}` : ""}
         </p>
       )}
 
@@ -79,9 +137,17 @@ export default async function OrderDetailPage({ params }: Props) {
               <dd>{formatJalaliDate(o.created_at, true)}</dd>
             </div>
             <div className="flex justify-between gap-2">
-              <dt className="text-slate-500">مبلغ</dt>
+              <dt className="text-slate-500">جمع کالا</dt>
+              <dd>{formatPriceToman(orderSubtotal(o))}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-slate-500">ارسال</dt>
+              <dd>{formatPriceToman(orderShipping(o))}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-slate-500">قابل پرداخت</dt>
               <dd className="font-bold text-[var(--brand-red)]">
-                {formatPriceToman(o.confirmed_amount ?? o.total_amount)}
+                {formatPriceToman(orderPayable(o))}
               </dd>
             </div>
             <div className="flex justify-between gap-2">
@@ -105,11 +171,6 @@ export default async function OrderDetailPage({ params }: Props) {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm">
           <h2 className="mb-3 font-semibold">آدرس ارسال</h2>
           <p className="leading-7 text-slate-700">{o.shipping_address}</p>
-          {o.notes && (
-            <p className="mt-3 rounded-lg bg-slate-50 p-3 text-slate-600">
-              یادداشت ادمین: {o.notes}
-            </p>
-          )}
         </div>
       </div>
 
@@ -132,6 +193,31 @@ export default async function OrderDetailPage({ params }: Props) {
           ))}
         </ul>
       </div>
+
+      {orderNotes.length > 0 && (
+        <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="font-semibold">پیام‌ها و یادداشت‌های سفارش</h2>
+          <OrderNotesHistory notes={orderNotes} />
+        </section>
+      )}
+
+      {showInvoice && o.status !== "cancelled" && (
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold">فاکتور</h2>
+          <InvoiceActions
+            allowExport={false}
+            model={{
+              order: o,
+              items: orderItems,
+              customer: {
+                fullName: customerName,
+                phone: o.contact_phone,
+              },
+              settings,
+            }}
+          />
+        </section>
+      )}
     </div>
   );
 }

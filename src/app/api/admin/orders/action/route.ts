@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/demo/config";
 import {
+  expireOverdueAwaitingOrders,
   runOrderAction,
   type OrderAction,
 } from "@/lib/bale/order-flow";
@@ -16,6 +17,7 @@ const ACTIONS = new Set<OrderAction>([
   "mark_shipped",
   "mark_delivered",
   "cancel",
+  "send_note",
 ]);
 
 export async function POST(req: Request) {
@@ -27,11 +29,20 @@ export async function POST(req: Request) {
       );
     }
 
+    // پاک‌سازی مهلت‌گذشته قبل از اقدام ادمین
+    try {
+      await expireOverdueAwaitingOrders();
+    } catch (err) {
+      console.error("expire before action", err);
+    }
+
     const body = (await req.json()) as {
       orderId?: string;
       action?: string;
       notes?: string | null;
+      templateKey?: string | null;
       confirmedAmount?: number | null;
+      shippingAmount?: number | null;
       paymentRef?: string | null;
       trackingNumber?: string | null;
       notifyCustomer?: boolean;
@@ -70,10 +81,13 @@ export async function POST(req: Request) {
       orderId,
       action,
       notes: body.notes,
+      templateKey: body.templateKey,
       confirmedAmount: body.confirmedAmount,
+      shippingAmount: body.shippingAmount,
       paymentRef: body.paymentRef,
       trackingNumber: body.trackingNumber,
       notifyCustomer: body.notifyCustomer !== false,
+      adminUserId: user.id,
     });
 
     const baleFailed = result.bale && result.bale.ok === false;

@@ -10,15 +10,18 @@ export type OrderMessageItem = {
 
 export type OrderMessageContext = {
   orderId: string;
+  customerName?: string | null;
   contactPhone: string;
   shippingAddress: string;
   totalAmount: number;
   confirmedAmount?: number | null;
+  shippingAmount?: number | null;
   items: OrderMessageItem[];
   notes?: string | null;
   paymentRef?: string | null;
   trackingNumber?: string | null;
   createdAt?: string | null;
+  paymentDeadlineAt?: string | null;
 };
 
 function shortId(id: string) {
@@ -26,7 +29,9 @@ function shortId(id: string) {
 }
 
 function amountOf(ctx: OrderMessageContext) {
-  return ctx.confirmedAmount ?? ctx.totalAmount;
+  const sub = ctx.confirmedAmount ?? ctx.totalAmount;
+  const ship = ctx.shippingAmount ?? 0;
+  return sub + ship;
 }
 
 function itemsBlock(items: OrderMessageItem[]) {
@@ -48,18 +53,21 @@ export function buildAdminNewOrderMessage(ctx: OrderMessageContext): string {
     "",
     `شناسه: #${shortId(ctx.orderId)}`,
     `تاریخ: ${date}`,
+    ctx.customerName ? `مشتری: ${ctx.customerName}` : null,
     `تماس مشتری: ${ctx.contactPhone}`,
     "",
     "اقلام:",
     itemsBlock(ctx.items),
     "",
-    `جمع: ${formatPriceToman(ctx.totalAmount)}`,
+    `جمع کالا: ${formatPriceToman(ctx.totalAmount)}`,
     "",
     "آدرس:",
     ctx.shippingAddress,
     "",
     "لطفاً موجودی و قیمت را بررسی کنید و در پنل ادمین فاکتور را تأیید کنید.",
-  ].join("\n");
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
 }
 
 export function buildCustomerInvoiceMessage(
@@ -70,14 +78,17 @@ export function buildCustomerInvoiceMessage(
     "✅ فاکتور تأییدشده — رفاهستون",
     "",
     `سفارش: #${shortId(ctx.orderId)}`,
+    ctx.customerName ? `مشتری: ${ctx.customerName}` : null,
     "",
     "اقلام:",
     itemsBlock(ctx.items),
     "",
+    `جمع کالا: ${formatPriceToman(ctx.confirmedAmount ?? ctx.totalAmount)}`,
+    `هزینه ارسال: ${formatPriceToman(ctx.shippingAmount ?? 0)}`,
     `مبلغ قابل پرداخت: ${formatPriceToman(amountOf(ctx))}`,
     "",
     "لطفاً مبلغ را به یکی از حساب‌های زیر واریز کنید و رسید را در همین گفتگو ارسال کنید:",
-  ];
+  ].filter((line) => line !== null) as string[];
 
   if (payment.cardNumber) {
     lines.push("", `💳 کارت: ${payment.cardNumber}`);
@@ -95,6 +106,15 @@ export function buildCustomerInvoiceMessage(
 
   if (ctx.notes) {
     lines.push("", `توضیح: ${ctx.notes}`);
+  }
+
+  lines.push(
+    "",
+    "⏰ مهلت واریز و ارسال رسید: ۱۰ دقیقه از زمان صدور فاکتور.",
+    "پس از این زمان درگاه بررسی بسته می‌شود و در صورت عدم تأیید پرداخت، سفارش لغو خواهد شد."
+  );
+  if (ctx.paymentDeadlineAt) {
+    lines.push(`مهلت تا: ${formatJalaliDate(ctx.paymentDeadlineAt, true)}`);
   }
 
   return lines.join("\n");
@@ -171,4 +191,28 @@ export function buildCustomerCancelledMessage(
   ];
   if (reason) lines.push(`دلیل: ${reason}`);
   return lines.join("\n");
+}
+
+export function buildCustomerAdminNoteMessage(
+  ctx: OrderMessageContext,
+  noteBody: string
+): string {
+  return [
+    "📩 پیام رفاهستون درباره سفارش",
+    "",
+    `سفارش #${shortId(ctx.orderId)}`,
+    "",
+    noteBody,
+  ].join("\n");
+}
+
+export function buildCustomerTimeoutCancelledMessage(
+  ctx: OrderMessageContext
+): string {
+  return [
+    "❌ لغو خودکار سفارش — رفاهستون",
+    "",
+    `سفارش #${shortId(ctx.orderId)} به‌دلیل پایان مهلت واریز/تأیید پرداخت لغو شد.`,
+    "در صورت تمایل می‌توانید مجدداً سفارش ثبت کنید.",
+  ].join("\n");
 }

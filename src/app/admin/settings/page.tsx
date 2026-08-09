@@ -172,6 +172,22 @@ export default function AdminSettingsPage() {
               onChange={(e) => update("payment_card_holder", e.target.value)}
             />
           </Field>
+          <Field
+            label="هزینه ارسال پیش‌فرض (تومان)"
+            hint="روی فاکتور اعمال می‌شود؛ در هر سفارش قابل تغییر است"
+          >
+            <Input
+              dir="ltr"
+              inputMode="numeric"
+              value={String(form.shipping_cost ?? 0)}
+              onChange={(e) =>
+                update(
+                  "shipping_cost",
+                  Number(e.target.value.replace(/[^\d]/g, "")) || 0
+                )
+              }
+            />
+          </Field>
         </div>
       </section>
 

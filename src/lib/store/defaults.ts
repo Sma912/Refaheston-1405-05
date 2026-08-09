@@ -12,6 +12,8 @@ export type StoreSettings = {
   ecommerce_license_number: string;
   ecommerce_license_url: string;
   store_address: string;
+  /** هزینه ارسال پیش‌فرض به تومان */
+  shipping_cost: number;
   footer_tagline: string;
   about_content: string;
   terms_content: string;
@@ -32,6 +34,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   ecommerce_license_number: "",
   ecommerce_license_url: "",
   store_address: "",
+  shipping_cost: 0,
   footer_tagline:
     "فروشگاه اینترنتی رفاهستون — تخصصی موبایل و لوازم الکترونیکی. پرداخت پس از تأیید موجودی از طریق اپلیکیشن بله انجام می‌شود.",
   about_content: `رفاهستون از سال‌ها فعالیت در بازار موبایل و لوازم الکترونیکی شکل گرفت؛ ابتدا به‌صورت فروش حضوری و سپس با حضور فعال در پیام‌رسان بله، جایی که لیست روز محصولات و قیمت‌ها برای مشتریان منتشر می‌شود.
@@ -66,6 +69,7 @@ export const DEMO_STORE_SETTINGS: StoreSettings = {
   payment_card_holder: "فروشگاه رفاهستون",
   bale_admin_phone: "09121234567",
   bale_products_channel_url: "https://ble.ir/refahestoon",
+  shipping_cost: 150000,
 };
 
 /** فقط فیلدهای عمومی برای نمایش سایت (همه به‌جز ممکن است admin phone جدا بماند — فعلاً همه عمومی‌اند چون در فوتر/تماس لازم‌اند) */

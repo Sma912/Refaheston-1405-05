@@ -39,7 +39,7 @@ interface DemoStore {
   reset: () => void;
 }
 
-const SEED_VERSION = 9;
+const SEED_VERSION = 11;
 
 const initialSettings: StoreSettings = { ...DEMO_STORE_SETTINGS };
 

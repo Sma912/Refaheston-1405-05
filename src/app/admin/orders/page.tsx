@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { isDemoMode } from "@/lib/demo/config";
 import { useDemoStore } from "@/lib/demo/store";
-import type { Order, OrderItem, OrderStatus } from "@/types/database";
+import { DEMO_USERS } from "@/lib/demo/data";
+import type { Order, OrderItem, OrderNote, OrderStatus } from "@/types/database";
 import { ALL_ORDER_STATUSES, ORDER_STATUS_LABELS } from "@/lib/utils/order-status";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { OrderNotesHistory } from "@/components/orders/order-notes-history";
+import { DeadlineCountdown } from "@/components/orders/deadline-countdown";
 import { formatPriceToman } from "@/lib/utils/price";
 import { formatJalaliDate } from "@/lib/utils/date";
+import { orderPayable } from "@/lib/orders/totals";
+import {
+  NOTE_TEMPLATES,
+  getNoteTemplate,
+  type NoteTemplateKey,
+} from "@/lib/orders/note-templates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,21 +38,32 @@ type ActionKey =
   | "mark_preparing"
   | "mark_shipped"
   | "mark_delivered"
-  | "cancel";
+  | "cancel"
+  | "send_note";
+
+type AdminOrderRow = Order & {
+  customer_name: string | null;
+};
 
 export default function AdminOrdersPage() {
   const demo = isDemoMode();
   const demoOrders = useDemoStore((s) => s.orders);
+  const demoSettings = useDemoStore((s) => s.settings);
   const updateOrder = useDemoStore((s) => s.updateOrder);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [filter, setFilter] = useState<OrderStatus | "all">("pending_confirmation");
-  const [selected, setSelected] = useState<Order | null>(null);
+  const [selected, setSelected] = useState<AdminOrderRow | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [history, setHistory] = useState<OrderNote[]>([]);
+  const [templateKey, setTemplateKey] = useState<NoteTemplateKey | "">("");
   const [notes, setNotes] = useState("");
   const [confirmedAmount, setConfirmedAmount] = useState("");
+  const [shippingAmount, setShippingAmount] = useState("");
   const [paymentRef, setPaymentRef] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const defaultShipping = demoSettings.shipping_cost ?? 0;
 
   async function load() {
     if (demo) {
@@ -50,19 +71,37 @@ export default function AdminOrdersPage() {
         filter === "all"
           ? demoOrders
           : demoOrders.filter((o) => o.status === filter);
-      setOrders(list);
+      setOrders(
+        list.map((o) => ({
+          ...o,
+          customer_name:
+            DEMO_USERS.find((u) => u.id === o.user_id)?.full_name ?? null,
+        }))
+      );
       return;
     }
+
     const supabase = createClient();
     let query = supabase
       .from("orders")
-      .select("*")
+      .select("*, profiles:user_id(full_name)")
       .order("created_at", { ascending: false })
       .limit(100);
     if (filter !== "all") query = query.eq("status", filter);
     const { data, error } = await query;
-    if (error) toast.error(error.message);
-    setOrders((data as Order[]) ?? []);
+    if (error) {
+      toast.error(error.message);
+      setOrders([]);
+      return;
+    }
+    setOrders(
+      ((data as Array<Order & { profiles?: { full_name: string | null } | null }>) ?? []).map(
+        (row) => ({
+          ...row,
+          customer_name: row.profiles?.full_name ?? null,
+        })
+      )
+    );
   }
 
   useEffect(() => {
@@ -70,39 +109,88 @@ export default function AdminOrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, demo, demoOrders]);
 
-  async function openOrder(order: Order) {
+  async function openOrder(order: AdminOrderRow) {
     setSelected(order);
+    setTemplateKey("");
     setNotes(order.notes ?? "");
     setConfirmedAmount(
       String(order.confirmed_amount ?? order.total_amount ?? "")
     );
+    setShippingAmount(
+      String(
+        order.shipping_amount != null
+          ? order.shipping_amount
+          : defaultShipping
+      )
+    );
     setPaymentRef(order.payment_ref ?? "");
     setTrackingNumber(order.tracking_number ?? "");
     setItems([]);
+    setHistory([]);
 
     if (demo) return;
 
     const supabase = createClient();
-    const { data } = await supabase
-      .from("order_items")
-      .select("*")
-      .eq("order_id", order.id);
-    setItems((data as OrderItem[]) ?? []);
+    const [{ data: itemRows }, { data: noteRows }] = await Promise.all([
+      supabase.from("order_items").select("*").eq("order_id", order.id),
+      supabase
+        .from("order_notes")
+        .select("*")
+        .eq("order_id", order.id)
+        .order("created_at", { ascending: false }),
+    ]);
+    setItems((itemRows as OrderItem[]) ?? []);
+    setHistory((noteRows as OrderNote[]) ?? []);
   }
+
+  function applyTemplate(key: NoteTemplateKey | "") {
+    setTemplateKey(key);
+    if (!key) return;
+    const t = getNoteTemplate(key);
+    if (t) setNotes(t.body);
+  }
+
+  const previewPayable = useMemo(() => {
+    if (!selected) return 0;
+    const sub =
+      Number(confirmedAmount.replace(/[^\d]/g, "")) ||
+      selected.confirmed_amount ||
+      selected.total_amount;
+    const ship =
+      Number(shippingAmount.replace(/[^\d]/g, "")) ||
+      selected.shipping_amount ||
+      0;
+    return sub + ship;
+  }, [selected, confirmedAmount, shippingAmount]);
 
   async function runAction(action: ActionKey) {
     if (!selected) return;
     setSaving(true);
 
     const amount = Number(confirmedAmount.replace(/[^\d]/g, "")) || null;
+    const ship = Number(shippingAmount.replace(/[^\d]/g, ""));
+    const shipValue = Number.isFinite(ship) ? ship : null;
 
     if (demo) {
       const now = new Date().toISOString();
+      if (action === "send_note") {
+        toast.success("پیام دمو ثبت شد (بدون بله)");
+        setSaving(false);
+        return;
+      }
       const patch: Partial<Order> = { notes: notes.trim() || null };
       if (action === "approve_invoice") {
         patch.status = "awaiting_payment";
         patch.confirmed_amount = amount ?? selected.total_amount;
+        patch.shipping_amount =
+          shipValue != null ? shipValue : defaultShipping;
         patch.invoice_sent_at = now;
+        patch.payment_deadline_at = new Date(
+          Date.now() + 10 * 60 * 1000
+        ).toISOString();
+        patch.admin_confirm_deadline_at = new Date(
+          Date.now() + 15 * 60 * 1000
+        ).toISOString();
       } else if (action === "confirm_payment") {
         if (!paymentRef.trim()) {
           toast.error("شماره پیگیری پرداخت الزامی است");
@@ -143,7 +231,9 @@ export default function AdminOrdersPage() {
           orderId: selected.id,
           action,
           notes,
+          templateKey: templateKey || null,
           confirmedAmount: amount,
+          shippingAmount: shipValue,
           paymentRef: paymentRef.trim() || null,
           trackingNumber: trackingNumber.trim() || null,
         }),
@@ -157,8 +247,13 @@ export default function AdminOrdersPage() {
         toast.error(payload.error ?? "عملیات ناموفق بود");
       } else {
         toast.success(payload.warning ?? "انجام شد و پیام بله ارسال شد");
-        setSelected(null);
-        load();
+        if (action === "send_note") {
+          openOrder({ ...selected, notes: notes.trim() || selected.notes });
+          load();
+        } else {
+          setSelected(null);
+          load();
+        }
       }
     } catch {
       toast.error("خطا در ارتباط با سرور");
@@ -168,13 +263,14 @@ export default function AdminOrdersPage() {
   }
 
   const status = selected?.status;
+  const selectedTemplate = getNoteTemplate(templateKey);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">مدیریت سفارش‌ها</h1>
         <p className="mt-1 text-sm text-slate-500">
-          تأیید موجودی، ارسال فاکتور و شبا در بله، ثبت رسید و رهگیری ارسال
+          مهلت مشتری برای واریز: ۱۰ دقیقه — مهلت تأیید ادمین: ۱۵ دقیقه
         </p>
       </div>
 
@@ -203,6 +299,7 @@ export default function AdminOrdersPage() {
           <TableHeader>
             <TableRow>
               <TableHead>شناسه</TableHead>
+              <TableHead>مشتری</TableHead>
               <TableHead>تاریخ</TableHead>
               <TableHead>مبلغ</TableHead>
               <TableHead>وضعیت</TableHead>
@@ -213,10 +310,16 @@ export default function AdminOrdersPage() {
             {orders.map((o) => (
               <TableRow key={o.id}>
                 <TableCell dir="ltr">#{o.id.slice(0, 8)}</TableCell>
-                <TableCell>{formatJalaliDate(o.created_at, true)}</TableCell>
                 <TableCell>
-                  {formatPriceToman(o.confirmed_amount ?? o.total_amount)}
+                  <div className="text-sm font-medium">
+                    {o.customer_name || "بدون نام"}
+                  </div>
+                  <div className="text-xs text-slate-500" dir="ltr">
+                    {o.contact_phone}
+                  </div>
                 </TableCell>
+                <TableCell>{formatJalaliDate(o.created_at, true)}</TableCell>
+                <TableCell>{formatPriceToman(orderPayable(o))}</TableCell>
                 <TableCell>
                   <OrderStatusBadge status={o.status} />
                 </TableCell>
@@ -238,6 +341,9 @@ export default function AdminOrdersPage() {
               <h2 className="font-semibold" dir="ltr">
                 سفارش #{selected.id.slice(0, 8)}
               </h2>
+              <p className="mt-1 text-sm font-medium">
+                مشتری: {selected.customer_name || "بدون نام"}
+              </p>
               <p className="mt-1 text-sm text-slate-600">
                 {selected.shipping_address}
               </p>
@@ -245,8 +351,28 @@ export default function AdminOrdersPage() {
                 {selected.contact_phone}
               </p>
             </div>
-            <OrderStatusBadge status={selected.status} />
+            <div className="flex flex-col items-end gap-2">
+              <OrderStatusBadge status={selected.status} />
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/admin/orders/${selected.id}/invoice`}>
+                  مشاهده فاکتور / پرینت
+                </Link>
+              </Button>
+            </div>
           </div>
+
+          {status === "awaiting_payment" && (
+            <div className="grid gap-2 md:grid-cols-2">
+              <DeadlineCountdown
+                label="مهلت واریز مشتری (۱۰ دقیقه)"
+                deadlineAt={selected.payment_deadline_at}
+              />
+              <DeadlineCountdown
+                label="مهلت تأیید ادمین (۱۵ دقیقه)"
+                deadlineAt={selected.admin_confirm_deadline_at}
+              />
+            </div>
+          )}
 
           {items.length > 0 && (
             <ul className="space-y-1 rounded-xl bg-slate-50 p-3 text-sm">
@@ -264,7 +390,7 @@ export default function AdminOrdersPage() {
 
           <div className="grid gap-3 md:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm">مبلغ نهایی فاکتور (تومان)</label>
+              <label className="mb-1 block text-sm">جمع کالا (تومان)</label>
               <Input
                 dir="ltr"
                 inputMode="numeric"
@@ -273,12 +399,27 @@ export default function AdminOrdersPage() {
               />
             </div>
             <div>
+              <label className="mb-1 block text-sm">هزینه ارسال (تومان)</label>
+              <Input
+                dir="ltr"
+                inputMode="numeric"
+                value={shippingAmount}
+                onChange={(e) => setShippingAmount(e.target.value)}
+              />
+            </div>
+            <div className="md:col-span-2 rounded-xl bg-slate-50 px-3 py-2 text-sm">
+              مبلغ قابل پرداخت فاکتور:{" "}
+              <span className="font-bold text-[var(--brand-red)]">
+                {formatPriceToman(previewPayable)}
+              </span>
+            </div>
+            <div>
               <label className="mb-1 block text-sm">شماره پیگیری پرداخت</label>
               <Input
                 dir="ltr"
                 value={paymentRef}
                 onChange={(e) => setPaymentRef(e.target.value)}
-                placeholder="پس از دریافت رسید"
+                placeholder="پس از دریافت رسید — حداکثر ۱۵ دقیقه"
               />
             </div>
             <div>
@@ -290,14 +431,53 @@ export default function AdminOrdersPage() {
                 placeholder="پست / تیپاکس / پیک"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm">یادداشت ادمین</label>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-              />
+          </div>
+
+          <div className="space-y-2 rounded-2xl border border-dashed border-slate-200 p-4">
+            <h3 className="font-semibold">پیام آماده / یادداشت برای مشتری</h3>
+            <select
+              className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+              value={templateKey}
+              onChange={(e) =>
+                applyTemplate(e.target.value as NoteTemplateKey | "")
+              }
+            >
+              <option value="">انتخاب پیام آماده…</option>
+              {NOTE_TEMPLATES.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              placeholder="متن پیام برای مشتری (یا از پیام آماده استفاده کنید)"
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => runAction("send_note")}
+                disabled={saving || !notes.trim()}
+              >
+                ارسال پیام به مشتری (بله)
+              </Button>
+              {selectedTemplate?.suggestCancel && (
+                <Button
+                  variant="destructive"
+                  onClick={() => runAction("cancel")}
+                  disabled={saving}
+                >
+                  ارسال پیام + لغو سفارش
+                </Button>
+              )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-semibold">تاریخچه یادداشت‌ها</h3>
+            <OrderNotesHistory notes={history} />
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -310,8 +490,7 @@ export default function AdminOrdersPage() {
                 تأیید و ارسال فاکتور در بله
               </Button>
             )}
-            {(status === "awaiting_payment" ||
-              status === "pending_confirmation") && (
+            {status === "awaiting_payment" && (
               <Button
                 variant="secondary"
                 onClick={() => runAction("confirm_payment")}

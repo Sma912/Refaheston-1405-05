@@ -47,6 +47,12 @@ function fromRow(row: Record<string, unknown> | null | undefined): StoreSettings
       base.ecommerce_license_url
     ),
     store_address: coalesce(row.store_address, base.store_address),
+    shipping_cost:
+      typeof row.shipping_cost === "number"
+        ? row.shipping_cost
+        : typeof row.shipping_cost === "string" && row.shipping_cost !== ""
+          ? Number(row.shipping_cost) || base.shipping_cost
+          : base.shipping_cost,
     footer_tagline: coalesce(row.footer_tagline, base.footer_tagline),
     about_content: coalesce(row.about_content, base.about_content),
     terms_content: coalesce(row.terms_content, base.terms_content),

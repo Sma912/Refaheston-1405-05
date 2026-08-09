@@ -52,8 +52,10 @@ export interface Order {
   shipping_address: string;
   contact_phone: string;
   notes: string | null;
-  /** مبلغ نهایی فاکتور پس از تأیید ادمین */
+  /** مبلغ نهایی کالا پس از تأیید ادمین (بدون ارسال) */
   confirmed_amount: number | null;
+  /** هزینه ارسال ثبت‌شده روی فاکتور */
+  shipping_amount: number | null;
   /** شماره پیگیری پرداخت بانکی */
   payment_ref: string | null;
   /** کد رهگیری ارسال */
@@ -61,8 +63,22 @@ export interface Order {
   invoice_sent_at: string | null;
   payment_confirmed_at: string | null;
   shipped_at: string | null;
+  /** مهلت مشتری برای واریز و ارسال رسید */
+  payment_deadline_at: string | null;
+  /** مهلت ادمین برای ثبت پیگیری و تأیید */
+  admin_confirm_deadline_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface OrderNote {
+  id: string;
+  order_id: string;
+  body: string;
+  template_key: string | null;
+  created_by: string | null;
+  sent_to_customer: boolean;
+  created_at: string;
 }
 
 export interface OrderItem {
