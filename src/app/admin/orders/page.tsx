@@ -82,6 +82,9 @@ export default function AdminOrdersPage() {
     }
 
     const supabase = createClient();
+    // پاک‌سازی سفارش‌های مهلت‌گذشته هنگام باز کردن پنل
+    void fetch("/api/admin/orders/expire", { method: "POST" }).catch(() => null);
+
     let query = supabase
       .from("orders")
       .select("*, profiles:user_id(full_name)")
