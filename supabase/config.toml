@@ -1,0 +1,16 @@
+# A string used to distinguish different Supabase projects on the same host.
+project_id = "refahestoon"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+major_version = 15
+
+[functions.send-otp]
+verify_jwt = false
+
+[functions.verify-otp]
+verify_jwt = false
