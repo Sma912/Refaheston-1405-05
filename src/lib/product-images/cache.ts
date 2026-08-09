@@ -8,6 +8,14 @@ const INDEX_PATH = path.join(IMAGE_DIR, "index.json");
 const FETCH_TIMEOUT_MS = 12000;
 const HAMRAHTEL_API = "https://core-api.hamrahtel.com/graphql/";
 const HAMRAHTEL_CHANNEL = "customer";
+const STATIC_PLACEHOLDER = "/product-placeholder.svg";
+
+/** Vercel/Lambda filesystem is ephemeral/read-only for public/. */
+function isEphemeralFs() {
+  return process.env.VERCEL === "1" || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+const remoteUrlCache = new Map<string, string>();
 
 export type ImageCacheEntry = {
   key: string;
@@ -508,6 +516,65 @@ async function resolveOnce(input: {
   color?: string | null;
 }): Promise<{ entry: ImageCacheEntry; publicUrl: string; cached: boolean }> {
   const { brand, model, color } = input;
+  const key = productImageKey(brand, model);
+
+  // Serverless: never write under public/; return Hamrahtel CDN URL directly.
+  if (isEphemeralFs()) {
+    const cachedRemote = remoteUrlCache.get(key);
+    if (cachedRemote) {
+      return {
+        entry: {
+          key,
+          brand,
+          model,
+          color: color ?? null,
+          file: "",
+          source: "hamrahtel",
+          sourceUrl: cachedRemote,
+          createdAt: new Date().toISOString(),
+        },
+        publicUrl: cachedRemote,
+        cached: true,
+      };
+    }
+
+    try {
+      const selected = await selectHamrahtelImage(brand, model);
+      if (selected?.url) {
+        remoteUrlCache.set(key, selected.url);
+        return {
+          entry: {
+            key,
+            brand,
+            model,
+            color: color ?? null,
+            file: "",
+            source: "hamrahtel",
+            sourceUrl: selected.url,
+            createdAt: new Date().toISOString(),
+          },
+          publicUrl: selected.url,
+          cached: false,
+        };
+      }
+    } catch (err) {
+      console.error("serverless image resolve failed", err);
+    }
+
+    return {
+      entry: {
+        key,
+        brand,
+        model,
+        color: color ?? null,
+        file: "product-placeholder.svg",
+        source: "placeholder",
+        createdAt: new Date().toISOString(),
+      },
+      publicUrl: STATIC_PLACEHOLDER,
+      cached: false,
+    };
+  }
 
   const cached = await getCachedProductImage(brand, model);
   if (cached) {
