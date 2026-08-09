@@ -6,6 +6,7 @@ import {
   orderPayable,
   orderShipping,
   orderSubtotal,
+  toMoney,
   type InvoiceViewModel,
 } from "@/lib/orders/totals";
 
@@ -29,9 +30,10 @@ export function InvoiceDocument({
   id?: string;
 }) {
   const { order, items, customer, settings } = model;
+  const fallbackShip = toMoney(settings.shipping_cost, 0);
   const subtotal = orderSubtotal(order);
-  const shipping = orderShipping(order);
-  const payable = orderPayable(order);
+  const shipping = orderShipping(order, fallbackShip);
+  const payable = orderPayable(order, fallbackShip);
 
   return (
     <div id={id} className="invoice-sheet" style={sheetStyle}>

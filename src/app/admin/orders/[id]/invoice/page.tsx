@@ -6,6 +6,7 @@ import { DEMO_ORDERS, DEMO_ORDER_ITEMS, DEMO_USERS } from "@/lib/demo/data";
 import { DEMO_STORE_SETTINGS } from "@/lib/store/defaults";
 import { getStoreSettings } from "@/lib/store/settings";
 import { InvoiceActions } from "@/components/orders/invoice-actions";
+import { toMoney } from "@/lib/orders/totals";
 import type { Order, OrderItem } from "@/types/database";
 import type { InvoiceViewModel } from "@/lib/orders/totals";
 
@@ -45,29 +46,47 @@ export default async function AdminInvoicePage({ params }: Props) {
       .maybeSingle();
     if (me?.role !== "admin") redirect("/");
 
-    const { data: order } = await supabase
+    const { data: orderRow } = await supabase
       .from("orders")
       .select("*")
       .eq("id", id)
       .maybeSingle();
-    if (!order) notFound();
+    if (!orderRow) notFound();
 
-    const [{ data: items }, { data: profile }, settings] = await Promise.all([
+    let order = orderRow as Order;
+    const settings = await getStoreSettings();
+
+    // اگر هزینه ارسال روی سفارش خالی است، از تنظیمات پر و ذخیره کن
+    if (
+      order.shipping_amount == null &&
+      toMoney(settings.shipping_cost, 0) > 0
+    ) {
+      const ship = toMoney(settings.shipping_cost, 0);
+      const { data: updated } = await supabase
+        .from("orders")
+        .update({ shipping_amount: ship })
+        .eq("id", id)
+        .select("*")
+        .maybeSingle();
+      if (updated) order = updated as Order;
+      else order = { ...order, shipping_amount: ship };
+    }
+
+    const [{ data: items }, { data: profile }] = await Promise.all([
       supabase.from("order_items").select("*").eq("order_id", id),
       supabase
         .from("profiles")
         .select("full_name, phone")
-        .eq("id", (order as Order).user_id)
+        .eq("id", order.user_id)
         .maybeSingle(),
-      getStoreSettings(),
     ]);
 
     model = {
-      order: order as Order,
+      order,
       items: (items as OrderItem[]) ?? [],
       customer: {
         fullName: profile?.full_name ?? null,
-        phone: profile?.phone ?? (order as Order).contact_phone,
+        phone: profile?.phone ?? order.contact_phone,
       },
       settings,
     };

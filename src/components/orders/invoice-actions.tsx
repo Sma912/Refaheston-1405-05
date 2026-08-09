@@ -6,6 +6,28 @@ import { InvoiceDocument } from "@/components/orders/invoice-document";
 import type { InvoiceViewModel } from "@/lib/orders/totals";
 import { toast } from "sonner";
 
+function buildPrintHtml(title: string, invoiceHtml: string) {
+  return `<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <title>${title}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff !important;
+      color: #0f172a;
+      font-family: Tahoma, Vazirmatn, Arial, sans-serif;
+    }
+    body { padding: 8px; }
+  </style>
+</head>
+<body>${invoiceHtml}</body>
+</html>`;
+}
+
 export function InvoiceActions({
   model,
   allowExport,
@@ -18,66 +40,66 @@ export function InvoiceActions({
   const [busy, setBusy] = useState(false);
 
   function printInvoice() {
-    const node = ref.current?.querySelector(".invoice-sheet") as HTMLElement | null;
+    const node = ref.current?.querySelector(
+      ".invoice-sheet"
+    ) as HTMLElement | null;
     if (!node) {
       toast.error("فاکتور برای پرینت پیدا نشد");
       return;
     }
 
-    // فقط فاکتور را در پنجره جدا پرینت می‌گیریم تا layout ادمین قاطی نشود
-    const win = window.open("", "_blank", "noopener,noreferrer,width=900,height=1200");
-    if (!win) {
-      toast.error("پنجره پرینت مسدود شد؛ pop-up را اجازه دهید");
+    const title = `فاکتور #${model.order.id.slice(0, 8)}`;
+    const html = buildPrintHtml(title, node.outerHTML);
+
+    // iframe مخفی — بدون pop-up و بدون مسدود شدن مرورگر
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("title", "print-invoice");
+    iframe.style.cssText =
+      "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
+    document.body.appendChild(iframe);
+
+    const frameDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    const frameWin = iframe.contentWindow;
+    if (!frameDoc || !frameWin) {
+      document.body.removeChild(iframe);
+      toast.error("امکان پرینت در این مرورگر نیست");
       return;
     }
 
-    win.document.open();
-    win.document.write(`<!doctype html>
-<html lang="fa" dir="rtl">
-<head>
-  <meta charset="utf-8" />
-  <title>فاکتور #${model.order.id.slice(0, 8)}</title>
-  <style>
-    @page { size: A4; margin: 12mm; }
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: #fff;
-      color: #0f172a;
-      font-family: Tahoma, Vazirmatn, Arial, sans-serif;
-    }
-    body { padding: 8px; }
-  </style>
-</head>
-<body>${node.outerHTML}</body>
-</html>`);
-    win.document.close();
+    frameDoc.open();
+    frameDoc.write(html);
+    frameDoc.close();
 
-    const trigger = () => {
+    const cleanup = () => {
+      window.setTimeout(() => {
+        try {
+          document.body.removeChild(iframe);
+        } catch {
+          // ignore
+        }
+      }, 800);
+    };
+
+    const run = () => {
       try {
-        win.focus();
-        win.print();
+        frameWin.focus();
+        frameWin.print();
+      } catch (err) {
+        console.error(err);
+        toast.error("پرینت ناموفق بود");
       } finally {
-        // بعضی مرورگرها بلافاصله می‌بندند؛ کمی تأخیر امن‌تر است
-        window.setTimeout(() => {
-          try {
-            win.close();
-          } catch {
-            // ignore
-          }
-        }, 300);
+        cleanup();
       }
     };
 
-    if (win.document.readyState === "complete") {
-      window.setTimeout(trigger, 250);
-    } else {
-      win.onload = () => window.setTimeout(trigger, 250);
-    }
+    // صبر کوتاه برای رندر فونت/layout
+    window.setTimeout(run, 350);
   }
 
   async function downloadPdf() {
-    const node = ref.current?.querySelector(".invoice-sheet") as HTMLElement | null;
+    const node = ref.current?.querySelector(
+      ".invoice-sheet"
+    ) as HTMLElement | null;
     if (!node) {
       toast.error("فاکتور برای PDF پیدا نشد");
       return;
@@ -90,7 +112,6 @@ export function InvoiceActions({
         import("jspdf"),
       ]);
 
-      // کلون موقت خارج از layout تا رندر دقیق‌تر باشد
       const host = document.createElement("div");
       host.style.cssText =
         "position:fixed;left:-10000px;top:0;width:800px;background:#fff;z-index:-1;";
@@ -128,10 +149,9 @@ export function InvoiceActions({
       const w = canvas.width * ratio;
       const h = canvas.height * ratio;
       const x = (pageWidth - w) / 2;
-      const y = margin;
-      pdf.addImage(img, "PNG", x, y, w, h);
+      pdf.addImage(img, "PNG", x, margin, w, h);
       pdf.save(`invoice-${model.order.id.slice(0, 8)}.pdf`);
-      toast.success("PDF با همان قالب صفحه ذخیره شد");
+      toast.success("PDF ذخیره شد");
     } catch (err) {
       console.error(err);
       toast.error("ساخت PDF ناموفق بود؛ پرینت را امتحان کنید");

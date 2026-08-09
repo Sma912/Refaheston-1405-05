@@ -49,6 +49,7 @@ export default function AdminOrdersPage() {
   const demo = isDemoMode();
   const demoOrders = useDemoStore((s) => s.orders);
   const demoSettings = useDemoStore((s) => s.settings);
+  const [settingsShipping, setSettingsShipping] = useState(0);
   const updateOrder = useDemoStore((s) => s.updateOrder);
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [filter, setFilter] = useState<OrderStatus | "all">("pending_confirmation");
@@ -63,7 +64,9 @@ export default function AdminOrdersPage() {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const defaultShipping = demoSettings.shipping_cost ?? 0;
+  const defaultShipping = demo
+    ? demoSettings.shipping_cost ?? 0
+    : settingsShipping;
 
   async function load() {
     if (demo) {
@@ -79,6 +82,18 @@ export default function AdminOrdersPage() {
         }))
       );
       return;
+    }
+
+    try {
+      const settingsRes = await fetch("/api/store/settings");
+      const settingsPayload = (await settingsRes.json()) as {
+        settings?: { shipping_cost?: number };
+      };
+      if (settingsPayload.settings?.shipping_cost != null) {
+        setSettingsShipping(Number(settingsPayload.settings.shipping_cost) || 0);
+      }
+    } catch {
+      // ignore
     }
 
     const supabase = createClient();
@@ -322,7 +337,11 @@ export default function AdminOrdersPage() {
                   </div>
                 </TableCell>
                 <TableCell>{formatJalaliDate(o.created_at, true)}</TableCell>
-                <TableCell>{formatPriceToman(orderPayable(o))}</TableCell>
+                <TableCell>
+                  {formatPriceToman(
+                    orderPayable(o, defaultShipping)
+                  )}
+                </TableCell>
                 <TableCell>
                   <OrderStatusBadge status={o.status} />
                 </TableCell>

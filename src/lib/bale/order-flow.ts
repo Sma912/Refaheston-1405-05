@@ -19,6 +19,7 @@ import {
   PAYMENT_WINDOW_MS,
   getNoteTemplate,
 } from "@/lib/orders/note-templates";
+import { toMoney } from "@/lib/orders/totals";
 import { getStoreSettingsAdmin } from "@/lib/store/settings";
 import type { Order, OrderItem, OrderStatus } from "@/types/database";
 
@@ -225,11 +226,13 @@ export async function runOrderAction(params: {
       const amount =
         confirmedAmount != null && confirmedAmount > 0
           ? Math.round(confirmedAmount)
-          : order.confirmed_amount ?? order.total_amount;
+          : toMoney(order.confirmed_amount, toMoney(order.total_amount, 0));
       const ship =
         shippingAmount != null && shippingAmount >= 0
           ? Math.round(shippingAmount)
-          : order.shipping_amount ?? settings.shipping_cost ?? 0;
+          : order.shipping_amount != null
+            ? toMoney(order.shipping_amount, 0)
+            : toMoney(settings.shipping_cost, 0);
       nextStatus = "awaiting_payment";
       patch.status = nextStatus;
       patch.confirmed_amount = amount;

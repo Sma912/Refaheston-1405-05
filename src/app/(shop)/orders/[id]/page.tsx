@@ -142,12 +142,12 @@ export default async function OrderDetailPage({ params }: Props) {
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-slate-500">ارسال</dt>
-              <dd>{formatPriceToman(orderShipping(o))}</dd>
+              <dd>{formatPriceToman(orderShipping(o, settings.shipping_cost))}</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-slate-500">قابل پرداخت</dt>
               <dd className="font-bold text-[var(--brand-red)]">
-                {formatPriceToman(orderPayable(o))}
+                {formatPriceToman(orderPayable(o, settings.shipping_cost))}
               </dd>
             </div>
             <div className="flex justify-between gap-2">
