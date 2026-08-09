@@ -36,6 +36,10 @@ function fromRow(row: Record<string, unknown> | null | undefined): StoreSettings
       row.bale_products_channel_url,
       base.bale_products_channel_url
     ),
+    bale_loan_bot_url: coalesce(
+      row.bale_loan_bot_url,
+      base.bale_loan_bot_url
+    ),
     enamad_code: coalesce(row.enamad_code, base.enamad_code),
     enamad_url: coalesce(row.enamad_url, base.enamad_url),
     ecommerce_license_number: coalesce(
@@ -79,6 +83,9 @@ export function applyEnvFallbacks(settings: StoreSettings): StoreSettings {
     bale_admin_phone:
       settings.bale_admin_phone ||
       (process.env.BALE_ADMIN_PHONE ?? "").trim(),
+    bale_loan_bot_url:
+      settings.bale_loan_bot_url ||
+      (process.env.NEXT_PUBLIC_BALE_LOAN_BOT_URL ?? "").trim(),
   };
 }
 

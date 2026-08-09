@@ -15,6 +15,7 @@ const ALLOWED_KEYS = [
   "payment_card_holder",
   "bale_admin_phone",
   "bale_products_channel_url",
+  "bale_loan_bot_url",
   "enamad_code",
   "enamad_url",
   "ecommerce_license_number",
@@ -120,22 +121,29 @@ export async function PUT(req: Request) {
       .single();
 
     if (error) {
-      // اگر migration هزینه ارسال هنوز اجرا نشده، بدون shipping_cost دوباره تلاش کن
-      const missingShipping =
+      // اگر migration ستون جدید هنوز اجرا نشده، بدون آن فیلد دوباره تلاش کن
+      const missingCol =
         typeof error.message === "string" &&
-        error.message.includes("shipping_cost");
-      if (missingShipping && "shipping_cost" in updatePayload) {
-        const { shipping_cost: _ignored, ...withoutShipping } = updatePayload;
+        (error.message.includes("shipping_cost") ||
+          error.message.includes("bale_loan_bot_url"));
+      if (missingCol) {
+        const withoutMissing = { ...updatePayload };
+        if (error.message.includes("shipping_cost")) {
+          delete withoutMissing.shipping_cost;
+        }
+        if (error.message.includes("bale_loan_bot_url")) {
+          delete withoutMissing.bale_loan_bot_url;
+        }
         const retry = await supabase
           .from("store_settings")
-          .upsert(withoutShipping)
+          .upsert(withoutMissing)
           .select("*")
           .single();
         if (retry.error) {
           return NextResponse.json(
             {
               error: retry.error.message,
-              hint: "migration 0005_shipping_cost.sql را در Supabase اجرا کنید",
+              hint: "migrationهای 0005 و 0007 را در Supabase اجرا کنید",
             },
             { status: 500 }
           );
@@ -144,16 +152,18 @@ export async function PUT(req: Request) {
           ok: true,
           settings: retry.data,
           warning:
-            "ذخیره شد، ولی ستون هزینه ارسال هنوز در دیتابیس نیست. migration 0005 را اجرا کنید.",
+            "ذخیره شد، ولی بعضی ستون‌های جدید در دیتابیس نیست. migration مربوط را اجرا کنید.",
         });
       }
 
       return NextResponse.json(
         {
           error: error.message,
-          hint: error.message.includes("shipping_cost")
-            ? "فایل supabase/migrations/0005_shipping_cost.sql را در SQL Editor اجرا کنید"
-            : undefined,
+          hint:
+            error.message.includes("shipping_cost") ||
+            error.message.includes("bale_loan_bot_url")
+              ? "فایل‌های migration در supabase/migrations را در SQL Editor اجرا کنید"
+              : undefined,
         },
         { status: 500 }
       );

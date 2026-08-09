@@ -207,6 +207,17 @@ export default function AdminSettingsPage() {
               }
             />
           </Field>
+          <Field
+            label="لینک ربات بله وام بانک رسالت"
+            hint="بنر تبلیغاتی صفحه اصلی به این آدرس می‌رود"
+          >
+            <Input
+              dir="ltr"
+              value={form.bale_loan_bot_url}
+              onChange={(e) => update("bale_loan_bot_url", e.target.value)}
+              placeholder="https://ble.ir/..."
+            />
+          </Field>
           <Field label="شماره مجوز فروشگاه اینترنتی">
             <Input
               dir="ltr"

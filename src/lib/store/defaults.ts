@@ -7,6 +7,8 @@ export type StoreSettings = {
   payment_card_holder: string;
   bale_admin_phone: string;
   bale_products_channel_url: string;
+  /** لینک ربات بله راهنمای وام بانک رسالت */
+  bale_loan_bot_url: string;
   enamad_code: string;
   enamad_url: string;
   ecommerce_license_number: string;
@@ -29,6 +31,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   payment_card_holder: "",
   bale_admin_phone: "",
   bale_products_channel_url: "",
+  bale_loan_bot_url: "",
   enamad_code: "",
   enamad_url: "",
   ecommerce_license_number: "",
@@ -69,6 +72,7 @@ export const DEMO_STORE_SETTINGS: StoreSettings = {
   payment_card_holder: "فروشگاه رفاهستون",
   bale_admin_phone: "09121234567",
   bale_products_channel_url: "https://ble.ir/refahestoon",
+  bale_loan_bot_url: "https://ble.ir/refahestoon_loan",
   shipping_cost: 150000,
 };
 
