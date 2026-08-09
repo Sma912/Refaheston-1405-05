@@ -120,7 +120,43 @@ export async function PUT(req: Request) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      // اگر migration هزینه ارسال هنوز اجرا نشده، بدون shipping_cost دوباره تلاش کن
+      const missingShipping =
+        typeof error.message === "string" &&
+        error.message.includes("shipping_cost");
+      if (missingShipping && "shipping_cost" in updatePayload) {
+        const { shipping_cost: _ignored, ...withoutShipping } = updatePayload;
+        const retry = await supabase
+          .from("store_settings")
+          .upsert(withoutShipping)
+          .select("*")
+          .single();
+        if (retry.error) {
+          return NextResponse.json(
+            {
+              error: retry.error.message,
+              hint: "migration 0005_shipping_cost.sql را در Supabase اجرا کنید",
+            },
+            { status: 500 }
+          );
+        }
+        return NextResponse.json({
+          ok: true,
+          settings: retry.data,
+          warning:
+            "ذخیره شد، ولی ستون هزینه ارسال هنوز در دیتابیس نیست. migration 0005 را اجرا کنید.",
+        });
+      }
+
+      return NextResponse.json(
+        {
+          error: error.message,
+          hint: error.message.includes("shipping_cost")
+            ? "فایل supabase/migrations/0005_shipping_cost.sql را در SQL Editor اجرا کنید"
+            : undefined,
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ ok: true, settings: data });

@@ -86,9 +86,10 @@ export default function AdminSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const payload = (await res.json()) as { error?: string };
+      const payload = (await res.json()) as { error?: string; warning?: string; hint?: string };
       if (!res.ok) toast.error(payload.error ?? "ذخیره ناموفق بود");
-      else toast.success("تنظیمات ذخیره شد");
+      else toast.success(payload.warning ?? "تنظیمات ذخیره شد");
+      if (payload.hint) toast.message(payload.hint);
     } catch {
       toast.error("خطا در ارتباط با سرور");
     } finally {
