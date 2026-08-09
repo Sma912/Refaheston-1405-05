@@ -1,0 +1,9 @@
+# Keep Vercel uploads small (CLI upload ignores these)
+.npm-cache
+node_modules
+.next
+.git
+.DS_Store
+public/product-images/*
+!public/product-images/.gitkeep
+*.log
