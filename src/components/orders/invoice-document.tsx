@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { formatJalaliDate } from "@/lib/utils/date";
 import { formatPriceToman } from "@/lib/utils/price";
 import { ORDER_STATUS_LABELS } from "@/lib/utils/order-status";
@@ -7,6 +8,18 @@ import {
   orderSubtotal,
   type InvoiceViewModel,
 } from "@/lib/orders/totals";
+
+/** استایل‌های اینلاین تا پرینت/PDF به CSS متغیر و layout وابسته نباشند */
+const sheetStyle: CSSProperties = {
+  direction: "rtl",
+  background: "#ffffff",
+  color: "#0f172a",
+  fontFamily: "Tahoma, Vazirmatn, Arial, sans-serif",
+  maxWidth: "800px",
+  margin: "0 auto",
+  padding: "28px",
+  boxSizing: "border-box",
+};
 
 export function InvoiceDocument({
   model,
@@ -21,123 +34,253 @@ export function InvoiceDocument({
   const payable = orderPayable(order);
 
   return (
-    <div
-      id={id}
-      dir="rtl"
-      className="mx-auto max-w-3xl bg-white p-6 text-slate-900 md:p-8"
-    >
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-5">
+    <div id={id} className="invoice-sheet" style={sheetStyle}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          gap: "16px",
+          borderBottom: "1px solid #e2e8f0",
+          paddingBottom: "20px",
+        }}
+      >
         <div>
-          <p className="text-sm text-slate-500">فروشگاه اینترنتی</p>
-          <h1 className="text-2xl font-extrabold text-[var(--brand-blue)]">
+          <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
+            فروشگاه اینترنتی
+          </p>
+          <h1
+            style={{
+              margin: "4px 0 0",
+              fontSize: "26px",
+              fontWeight: 800,
+              color: "#1e3a8a",
+            }}
+          >
             رفاهستون
           </h1>
           {settings.store_address ? (
-            <p className="mt-1 text-xs text-slate-500">{settings.store_address}</p>
+            <p style={{ margin: "6px 0 0", fontSize: "12px", color: "#64748b" }}>
+              {settings.store_address}
+            </p>
           ) : null}
           {settings.contact_phone ? (
-            <p className="text-xs" dir="ltr">
+            <p
+              style={{ margin: "2px 0 0", fontSize: "12px", direction: "ltr" }}
+            >
               {settings.contact_phone}
             </p>
           ) : null}
         </div>
-        <div className="text-left text-sm" dir="ltr">
-          <p className="font-semibold">Invoice #{order.id.slice(0, 8)}</p>
-          <p className="text-slate-500">{formatJalaliDate(order.created_at, true)}</p>
-          <p className="mt-1 text-xs text-slate-500">
+        <div style={{ textAlign: "left", fontSize: "13px", direction: "ltr" }}>
+          <p style={{ margin: 0, fontWeight: 700 }}>
+            Invoice #{order.id.slice(0, 8)}
+          </p>
+          <p style={{ margin: "4px 0 0", color: "#64748b" }}>
+            {formatJalaliDate(order.created_at, true)}
+          </p>
+          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>
             {ORDER_STATUS_LABELS[order.status]}
           </p>
         </div>
-      </header>
+      </div>
 
-      <section className="mt-5 grid gap-4 text-sm md:grid-cols-2">
-        <div className="rounded-xl bg-slate-50 p-4">
-          <h2 className="mb-2 font-semibold">خریدار</h2>
-          <p>{customer.fullName || "—"}</p>
-          <p dir="ltr">{customer.phone || order.contact_phone}</p>
-          <p className="mt-2 leading-6 text-slate-600">{order.shipping_address}</p>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "12px",
+          marginTop: "20px",
+          fontSize: "13px",
+        }}
+      >
+        <div
+          style={{
+            background: "#f8fafc",
+            borderRadius: "12px",
+            padding: "14px",
+          }}
+        >
+          <h2 style={{ margin: "0 0 8px", fontSize: "14px", fontWeight: 700 }}>
+            خریدار
+          </h2>
+          <p style={{ margin: 0 }}>{customer.fullName || "—"}</p>
+          <p style={{ margin: "4px 0 0", direction: "ltr" }}>
+            {customer.phone || order.contact_phone}
+          </p>
+          <p style={{ margin: "8px 0 0", color: "#475569", lineHeight: 1.7 }}>
+            {order.shipping_address}
+          </p>
         </div>
-        <div className="rounded-xl bg-slate-50 p-4">
-          <h2 className="mb-2 font-semibold">اطلاعات پرداخت</h2>
+        <div
+          style={{
+            background: "#f8fafc",
+            borderRadius: "12px",
+            padding: "14px",
+          }}
+        >
+          <h2 style={{ margin: "0 0 8px", fontSize: "14px", fontWeight: 700 }}>
+            اطلاعات پرداخت
+          </h2>
           {settings.payment_card_number ? (
-            <p dir="ltr">کارت: {settings.payment_card_number}</p>
+            <p style={{ margin: "0 0 4px", direction: "ltr" }}>
+              کارت: {settings.payment_card_number}
+            </p>
           ) : null}
           {settings.payment_sheba ? (
-            <p className="break-all font-mono text-xs" dir="ltr">
+            <p
+              style={{
+                margin: "0 0 4px",
+                direction: "ltr",
+                fontFamily: "monospace",
+                fontSize: "12px",
+                wordBreak: "break-all",
+              }}
+            >
               شبا: {settings.payment_sheba}
             </p>
           ) : null}
           {settings.payment_card_holder ? (
-            <p>به نام: {settings.payment_card_holder}</p>
+            <p style={{ margin: "0 0 4px" }}>
+              به نام: {settings.payment_card_holder}
+            </p>
           ) : null}
           {order.payment_ref ? (
-            <p className="mt-2" dir="ltr">
+            <p style={{ margin: "8px 0 0", direction: "ltr" }}>
               پیگیری پرداخت: {order.payment_ref}
             </p>
           ) : null}
         </div>
-      </section>
+      </div>
 
-      <section className="mt-6 overflow-hidden rounded-xl border border-slate-200">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-100 text-slate-600">
-            <tr>
-              <th className="px-3 py-2 text-right font-medium">ردیف</th>
-              <th className="px-3 py-2 text-right font-medium">شرح کالا</th>
-              <th className="px-3 py-2 text-center font-medium">تعداد</th>
-              <th className="px-3 py-2 text-left font-medium">مبلغ</th>
+      <div
+        style={{
+          marginTop: "22px",
+          border: "1px solid #e2e8f0",
+          borderRadius: "12px",
+          overflow: "hidden",
+        }}
+      >
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: "13px",
+          }}
+        >
+          <thead>
+            <tr style={{ background: "#f1f5f9", color: "#475569" }}>
+              <th style={{ padding: "10px 12px", textAlign: "right" }}>ردیف</th>
+              <th style={{ padding: "10px 12px", textAlign: "right" }}>
+                شرح کالا
+              </th>
+              <th style={{ padding: "10px 12px", textAlign: "center" }}>
+                تعداد
+              </th>
+              <th style={{ padding: "10px 12px", textAlign: "left" }}>مبلغ</th>
             </tr>
           </thead>
           <tbody>
             {items.map((item, index) => (
-              <tr key={item.id} className="border-t border-slate-100">
-                <td className="px-3 py-2">{index + 1}</td>
-                <td className="px-3 py-2">
+              <tr key={item.id} style={{ borderTop: "1px solid #f1f5f9" }}>
+                <td style={{ padding: "10px 12px" }}>{index + 1}</td>
+                <td style={{ padding: "10px 12px" }}>
                   {item.product_title ?? "محصول"}
                   {item.color ? ` — ${item.color}` : ""}
                 </td>
-                <td className="px-3 py-2 text-center">{item.quantity}</td>
-                <td className="px-3 py-2 text-left" dir="ltr">
+                <td style={{ padding: "10px 12px", textAlign: "center" }}>
+                  {item.quantity}
+                </td>
+                <td
+                  style={{
+                    padding: "10px 12px",
+                    textAlign: "left",
+                    direction: "ltr",
+                  }}
+                >
                   {formatPriceToman(item.unit_price * item.quantity)}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </section>
+      </div>
 
-      <section className="mt-5 space-y-2 text-sm">
-        <div className="flex justify-between gap-3">
-          <span className="text-slate-500">جمع کالا</span>
+      <div style={{ marginTop: "18px", fontSize: "13px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginBottom: "8px",
+          }}
+        >
+          <span style={{ color: "#64748b" }}>جمع کالا</span>
           <span>{formatPriceToman(subtotal)}</span>
         </div>
-        <div className="flex justify-between gap-3">
-          <span className="text-slate-500">هزینه ارسال</span>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginBottom: "8px",
+          }}
+        >
+          <span style={{ color: "#64748b" }}>هزینه ارسال</span>
           <span>{formatPriceToman(shipping)}</span>
         </div>
-        <div className="flex justify-between gap-3 border-t border-slate-200 pt-2 text-base font-bold">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            borderTop: "1px solid #e2e8f0",
+            paddingTop: "10px",
+            fontSize: "16px",
+            fontWeight: 800,
+          }}
+        >
           <span>مبلغ قابل پرداخت</span>
-          <span className="text-[var(--brand-red)]">
-            {formatPriceToman(payable)}
-          </span>
+          <span style={{ color: "#e11d48" }}>{formatPriceToman(payable)}</span>
         </div>
-      </section>
+      </div>
 
       {order.notes ? (
-        <p className="mt-5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <p
+          style={{
+            marginTop: "18px",
+            background: "#fffbeb",
+            color: "#92400e",
+            borderRadius: "8px",
+            padding: "10px 12px",
+            fontSize: "13px",
+          }}
+        >
           یادداشت: {order.notes}
         </p>
       ) : null}
 
       {order.tracking_number ? (
-        <p className="mt-3 text-sm" dir="ltr">
+        <p
+          style={{
+            marginTop: "10px",
+            fontSize: "13px",
+            direction: "ltr",
+          }}
+        >
           کد رهگیری ارسال: {order.tracking_number}
         </p>
       ) : null}
 
-      <footer className="mt-8 border-t border-slate-100 pt-3 text-center text-xs text-slate-400">
+      <div
+        style={{
+          marginTop: "28px",
+          borderTop: "1px solid #f1f5f9",
+          paddingTop: "12px",
+          textAlign: "center",
+          fontSize: "11px",
+          color: "#94a3b8",
+        }}
+      >
         فاکتور رفاهستون — پس از پرداخت، رسید را از طریق بله ارسال کنید.
-      </footer>
+      </div>
     </div>
   );
 }

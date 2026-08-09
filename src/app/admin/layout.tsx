@@ -27,7 +27,7 @@ export default function AdminLayout({
 }) {
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="no-print border-b border-slate-200 bg-white">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <Image src="/logo.png" alt="رفاهستون" width={120} height={25} className="h-6 w-auto" />
@@ -41,7 +41,7 @@ export default function AdminLayout({
         </div>
       </header>
       <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[220px_1fr]">
-        <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-3">
+        <aside className="no-print h-fit rounded-2xl border border-slate-200 bg-white p-3">
           <nav className="flex flex-col gap-1">
             {links.map(({ href, label, icon: Icon }) => (
               <Link

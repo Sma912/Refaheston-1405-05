@@ -51,25 +51,34 @@ body {
 
 @media print {
   body {
-    background: white !important;
+    background: #fff !important;
   }
 
-  header,
-  aside,
-  nav,
-  .print\:hidden {
+  /* فقط فاکتور دیده شود */
+  body * {
+    visibility: hidden !important;
+  }
+
+  .invoice-sheet,
+  .invoice-sheet * {
+    visibility: visible !important;
+  }
+
+  .no-print,
+  .no-print * {
     display: none !important;
+    visibility: hidden !important;
   }
 
-  main {
+  .invoice-sheet {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
     max-width: none !important;
-    padding: 0 !important;
-  }
-
-  #invoice-document,
-  [id="invoice-document"] {
+    margin: 0 !important;
     box-shadow: none !important;
     border: none !important;
   }
 }
+
 

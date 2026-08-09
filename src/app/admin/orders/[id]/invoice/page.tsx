@@ -75,7 +75,7 @@ export default async function AdminInvoicePage({ params }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+      <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">فاکتور سفارش</h1>
           <p className="text-sm text-slate-500" dir="ltr">
