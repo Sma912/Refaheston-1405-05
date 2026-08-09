@@ -2,6 +2,7 @@ import { isDemoMode } from "@/lib/demo/config";
 import { DEMO_PRODUCTS } from "@/lib/demo/data";
 import { createClient } from "@/lib/supabase/server";
 import { HomeCatalogWithImages } from "@/components/product/home-catalog-with-images";
+import { ResalatLoanPromoBanner } from "@/components/home/resalat-loan-promo-banner";
 import type { Product } from "@/types/database";
 import Link from "next/link";
 
@@ -52,6 +53,8 @@ export default async function HomePage() {
           </p>
         </div>
       </section>
+
+      <ResalatLoanPromoBanner />
 
       <HomeCatalogWithImages initialProducts={products} />
     </div>
