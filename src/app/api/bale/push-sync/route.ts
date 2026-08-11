@@ -13,9 +13,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * همگام‌سازی مستقیم متن لیست (اگر ربات بتواند به سایت POST بزند)
- * Header: Authorization: Bearer <BALE_WEBHOOK_SECRET>
- * Body: { text: "...", chatId?: "manual", flushNow?: true } یا Update کامل بله
+ * همگام‌سازی مستقیم متن لیست
+ * Authorization: Bearer <BALE_WEBHOOK_SECRET>
  */
 export async function POST(req: NextRequest) {
   try {
@@ -50,24 +49,25 @@ export async function POST(req: NextRequest) {
         messageId: null,
         text: body.text,
       });
-
       const result = await flushChannelProductSync(chatId, { force: true });
       return NextResponse.json({ ok: true, result });
     }
 
-    // flush-only: { chatId, flushNow: true } without new text
-    if (body.flushNow && body.chatId?.trim()) {
-      const result = await flushChannelProductSync(body.chatId.trim(), {
-        force: true,
-      });
-      return NextResponse.json({ ok: true, result });
+    if (body.flushNow) {
+      const chatId = body.chatId?.trim();
+      if (chatId) {
+        const result = await flushChannelProductSync(chatId, { force: true });
+        return NextResponse.json({ ok: true, result });
+      }
     }
 
     const { accepted, chatIds } = await handleBaleProductUpdate(body);
     const flushes = [];
     for (const chatId of chatIds) {
-      const result = await flushChannelProductSync(chatId, { force: true });
-      flushes.push({ chatId, result });
+      flushes.push({
+        chatId,
+        result: await flushChannelProductSync(chatId, { force: true }),
+      });
     }
     return NextResponse.json({ ok: true, accepted, chatIds, flushes });
   } catch (err) {

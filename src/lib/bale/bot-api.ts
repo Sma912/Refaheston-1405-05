@@ -92,3 +92,11 @@ export function looksLikeProductList(text: string): boolean {
   if (t.length < 40) return false;
   return t.includes("📱") && t.includes("💰") && /تومان/.test(t);
 }
+
+/** تکه ادامه‌دار لیست (بدون هدر کامل) */
+export function looksLikeProductContinuation(text: string): boolean {
+  const t = text.trim();
+  if (t.length < 20) return false;
+  if (looksLikeProductList(t)) return false;
+  return t.includes("💰") && /تومان/.test(t);
+}
