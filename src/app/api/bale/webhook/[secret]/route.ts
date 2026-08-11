@@ -1,4 +1,3 @@
-import { after } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
 import { isDemoMode } from "@/lib/demo/config";
 import { getBaleWebhookSecret } from "@/lib/bale/bot-api";
@@ -29,27 +28,29 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const update = (await req.json()) as BaleUpdate;
     const { accepted, chatIds } = await handleBaleProductUpdate(update);
 
+    // روی Vercel تأخیر after()+sleep قابل‌اعتماد نیست؛ فوری همگام می‌کنیم.
+    // اگر چند پیام پشت‌سرهم بیاید، هر کدام بافر را جمع و دوباره sync می‌کند.
+    const flushes: Array<{ chatId: string; result: unknown }> = [];
     for (const chatId of chatIds) {
-      after(async () => {
-        await new Promise((r) => setTimeout(r, 26_000));
-        try {
-          const result = await flushChannelProductSync(chatId);
-          if (!result.skipped) {
-            console.info("[bale:channel-sync]", {
-              chatId,
-              parsed: result.stats.parsed,
-              upserted: result.stats.upserted,
-              deactivated: result.stats.deactivated,
-              messageCount: result.messageCount,
-            });
-          }
-        } catch (err) {
-          console.error("[bale:channel-sync] flush failed", chatId, err);
+      try {
+        const result = await flushChannelProductSync(chatId, { force: true });
+        flushes.push({ chatId, result });
+        if (!("skipped" in result) || !result.skipped) {
+          console.info("[bale:channel-sync]", { chatId, result });
         }
-      });
+      } catch (err) {
+        console.error("[bale:channel-sync] flush failed", chatId, err);
+        flushes.push({
+          chatId,
+          result: {
+            skipped: true,
+            reason: err instanceof Error ? err.message : "flush_error",
+          },
+        });
+      }
     }
 
-    return NextResponse.json({ ok: true, accepted, chatIds });
+    return NextResponse.json({ ok: true, accepted, chatIds, flushes });
   } catch (err) {
     console.error("[bale:webhook]", err);
     return NextResponse.json(

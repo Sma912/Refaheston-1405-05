@@ -107,14 +107,17 @@ export async function enqueueChannelProductText(input: {
 }
 
 /**
- * بعد از debounce: همه پیام‌های اخیر چت را جمع می‌کند و به products همگام می‌کند.
+ * همه پیام‌های اخیر چت را جمع می‌کند و به products همگام می‌کند.
+ * force=true برای رد کردن debounce (webhook فوری / flush دستی).
  */
 export async function flushChannelProductSync(
-  chatId: string
+  chatId: string,
+  options?: { force?: boolean }
 ): Promise<
   | { skipped: true; reason: string }
   | { skipped: false; stats: ProductSyncStats; messageCount: number }
 > {
+  const force = options?.force === true;
   const admin = createAdminClient();
   const { data: state, error: stateError } = await admin
     .from("bale_channel_sync_state")
@@ -123,13 +126,15 @@ export async function flushChannelProductSync(
     .maybeSingle();
 
   if (stateError) throw new Error(stateError.message);
-  if (!state?.debounce_until) {
+  if (!state?.debounce_until && !force) {
     return { skipped: true, reason: "no_state" };
   }
 
-  const until = new Date(state.debounce_until).getTime();
-  if (Number.isFinite(until) && until > Date.now() + 500) {
-    return { skipped: true, reason: "debounce_pending" };
+  if (!force) {
+    const until = new Date(state!.debounce_until).getTime();
+    if (Number.isFinite(until) && until > Date.now() + 500) {
+      return { skipped: true, reason: "debounce_pending" };
+    }
   }
 
   const sinceIso = new Date(Date.now() - BUFFER_WINDOW_MS).toISOString();

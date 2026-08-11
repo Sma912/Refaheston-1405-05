@@ -7,7 +7,6 @@ import {
   type BaleUpdate,
 } from "@/lib/bale/channel-sync";
 import { getBaleWebhookSecret, looksLikeProductList } from "@/lib/bale/bot-api";
-import { after } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +15,7 @@ export const maxDuration = 60;
 /**
  * همگام‌سازی مستقیم متن لیست (اگر ربات بتواند به سایت POST بزند)
  * Header: Authorization: Bearer <BALE_WEBHOOK_SECRET>
- * Body: { text: "...", chatId?: "manual" } یا Update کامل بله
+ * Body: { text: "...", chatId?: "manual", flushNow?: true } یا Update کامل بله
  */
 export async function POST(req: NextRequest) {
   try {
@@ -52,35 +51,25 @@ export async function POST(req: NextRequest) {
         text: body.text,
       });
 
-      if (body.flushNow) {
-        const result = await flushChannelProductSync(chatId);
-        return NextResponse.json({ ok: true, result });
-      }
+      const result = await flushChannelProductSync(chatId, { force: true });
+      return NextResponse.json({ ok: true, result });
+    }
 
-      after(async () => {
-        await new Promise((r) => setTimeout(r, 26_000));
-        try {
-          await flushChannelProductSync(chatId);
-        } catch (err) {
-          console.error("[bale:push-sync]", err);
-        }
+    // flush-only: { chatId, flushNow: true } without new text
+    if (body.flushNow && body.chatId?.trim()) {
+      const result = await flushChannelProductSync(body.chatId.trim(), {
+        force: true,
       });
-
-      return NextResponse.json({ ok: true, accepted: 1, chatId, deferred: true });
+      return NextResponse.json({ ok: true, result });
     }
 
     const { accepted, chatIds } = await handleBaleProductUpdate(body);
+    const flushes = [];
     for (const chatId of chatIds) {
-      after(async () => {
-        await new Promise((r) => setTimeout(r, 26_000));
-        try {
-          await flushChannelProductSync(chatId);
-        } catch (err) {
-          console.error("[bale:push-sync]", err);
-        }
-      });
+      const result = await flushChannelProductSync(chatId, { force: true });
+      flushes.push({ chatId, result });
     }
-    return NextResponse.json({ ok: true, accepted, chatIds });
+    return NextResponse.json({ ok: true, accepted, chatIds, flushes });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "خطا" },
