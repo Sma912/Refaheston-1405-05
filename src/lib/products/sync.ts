@@ -84,7 +84,9 @@ export function scopeForProduct(
   }
   if (
     p.category_id === DEMO_CATEGORY_IDS["iphone-noreg"] ||
-    isNonRegistryOrigin(p.origin)
+    isNonRegistryOrigin(p.origin) ||
+    p.description?.includes("بدون کد ریجستری") ||
+    p.description?.includes("بدون رجیستری")
   ) {
     return "iphone-noreg";
   }
@@ -132,7 +134,12 @@ export function buildProductSyncPlan(
     const detected = scopeForParsedProduct(p);
     const scope =
       forceScope && forceScope !== "auto" ? forceScope : detected;
-    const key = productVariantKey(p);
+    let origin = p.origin;
+    if (scope === "iphone-noreg" && !isNonRegistryOrigin(origin)) {
+      // forceScope یا دسته بدون‌کد: مبدأ را برای کاتالوگ/قیمت مشخص نگه دار
+      origin = origin?.trim() ? origin : "Not ZAA";
+    }
+    const key = productVariantKey({ ...p, origin });
     rows.push({
       brand: p.brand,
       model: p.model,
@@ -140,7 +147,7 @@ export function buildProductSyncPlan(
       ram: p.ram,
       color: p.color,
       price: p.price,
-      origin: p.origin,
+      origin,
       description:
         scope === "iphone-noreg" ? "آیفون بدون کد ریجستری" : null,
       is_active: true,

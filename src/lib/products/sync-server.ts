@@ -68,7 +68,10 @@ export async function syncProductsFromChannelText(input: {
   rawText: string;
   importedBy?: string | null;
   forceScope?: ProductListScope | "auto";
+  /** اگر false باشد فقط upsert؛ کالاهای غایب غیرفعال نمی‌شوند */
+  deactivateMissing?: boolean;
 }): Promise<ProductSyncStats> {
+  const deactivateMissing = input.deactivateMissing !== false;
   const plan = buildProductSyncPlan(input.rawText, input.forceScope);
   if (plan.rows.length === 0) {
     return {
@@ -126,20 +129,24 @@ export async function syncProductsFromChannelText(input: {
     if (error) throw new Error(error.message);
   }
 
-  const { data: afterRows, error: afterError } = await admin
-    .from("products")
-    .select("*");
-  if (afterError) throw new Error(afterError.message);
-
-  const after = (afterRows as Product[]) ?? [];
-  const deactivateIds = planDeactivations(after, plan, categoryIdToScope);
-
-  if (deactivateIds.length > 0) {
-    const { error } = await admin
+  let deactivated = 0;
+  if (deactivateMissing) {
+    const { data: afterRows, error: afterError } = await admin
       .from("products")
-      .update({ is_active: false, updated_at: plan.stampedAt })
-      .in("id", deactivateIds);
-    if (error) throw new Error(error.message);
+      .select("*");
+    if (afterError) throw new Error(afterError.message);
+
+    const after = (afterRows as Product[]) ?? [];
+    const deactivateIds = planDeactivations(after, plan, categoryIdToScope);
+
+    if (deactivateIds.length > 0) {
+      const { error } = await admin
+        .from("products")
+        .update({ is_active: false, updated_at: plan.stampedAt })
+        .in("id", deactivateIds);
+      if (error) throw new Error(error.message);
+      deactivated = deactivateIds.length;
+    }
   }
 
   await admin.from("product_imports").insert({
@@ -153,7 +160,7 @@ export async function syncProductsFromChannelText(input: {
     upserted: plan.rows.length,
     inserted,
     updated,
-    deactivated: deactivateIds.length,
+    deactivated,
     scopes: plan.scopes,
     errors: plan.parsed.errors,
     stampedAt: plan.stampedAt,

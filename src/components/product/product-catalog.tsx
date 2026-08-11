@@ -11,19 +11,23 @@ import { Search, SlidersHorizontal } from "lucide-react";
 import { isNonRegistryOrigin } from "@/lib/parser/bale-phone-parser";
 import { DEMO_CAT_IPHONE_NOREG } from "@/lib/demo/data";
 
+/** تشخیص تب «آیفون بدون رجیستری» در کاتالوگ فروشگاه */
+export function isNoregCatalogProduct(product: {
+  origin?: string | null;
+  category_id?: string | null;
+  description?: string | null;
+}): boolean {
+  if (isNonRegistryOrigin(product.origin)) return true;
+  if (product.category_id === DEMO_CAT_IPHONE_NOREG) return true;
+  const d = product.description?.trim() ?? "";
+  if (d.includes("بدون کد ریجستری") || d.includes("بدون رجیستری")) return true;
+  return false;
+}
+
 function inCategory(product: Product, category: string): boolean {
-  if (category === "iphone-noreg") {
-    return (
-      product.category_id === DEMO_CAT_IPHONE_NOREG ||
-      isNonRegistryOrigin(product.origin)
-    );
-  }
-  if (category === "mobile") {
-    return (
-      product.category_id !== DEMO_CAT_IPHONE_NOREG &&
-      !isNonRegistryOrigin(product.origin)
-    );
-  }
+  const noreg = isNoregCatalogProduct(product);
+  if (category === "iphone-noreg") return noreg;
+  if (category === "mobile") return !noreg;
   return false;
 }
 

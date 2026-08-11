@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cart/store";
 import { createClient } from "@/lib/supabase/client";
@@ -17,11 +17,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+const ADDRESS_STORAGE_KEY = "refahestoon_checkout_address";
 
 export function CheckoutForm({
   defaultPhone,
+  defaultAddress,
 }: {
   defaultPhone?: string | null;
+  defaultAddress?: string | null;
 }) {
   const router = useRouter();
   const demo = isDemoMode();
@@ -32,29 +37,85 @@ export function CheckoutForm({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    phone?: string;
+    address?: string;
+  }>({});
+  const addressRef = useRef<HTMLTextAreaElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (defaultPhone) {
+      setPhone(sanitizePhoneInput(defaultPhone));
+    }
+  }, [defaultPhone]);
+
+  useEffect(() => {
+    let saved = "";
+    try {
+      saved = localStorage.getItem(ADDRESS_STORAGE_KEY)?.trim() ?? "";
+    } catch {
+      saved = "";
+    }
+    const initial = (defaultAddress?.trim() || saved).trim();
+    if (initial) setAddress(initial);
+  }, [defaultAddress]);
+
+  function showValidation(message: string, focus: "address" | "phone") {
+    setError(message);
+    setFieldErrors(
+      focus === "address"
+        ? { address: message }
+        : { phone: message }
+    );
+    toast.error(message);
+    const el = focus === "address" ? addressRef.current : phoneRef.current;
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    el?.focus();
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
 
     if (items.length === 0) {
       setError("سبد خرید خالی است");
+      toast.error("سبد خرید خالی است");
       return;
     }
-    if (!address.trim() || !phone.trim()) {
-      setError("آدرس و شماره تماس الزامی است");
+
+    const trimmedAddress = address.trim();
+    const trimmedPhone = phone.trim();
+
+    if (!trimmedAddress) {
+      showValidation("لطفاً آدرس ارسال را وارد کنید", "address");
       return;
     }
+    if (!trimmedPhone) {
+      showValidation("لطفاً شماره تماس را وارد کنید", "phone");
+      return;
+    }
+
     const contactPhone = normalizePhone(phone);
     if (!contactPhone || contactPhone.length !== PHONE_LOCAL_LENGTH) {
-      setError("شماره تماس ۱۱ رقمی معتبر وارد کنید (مثال: ۰۹۱۲۳۴۵۶۷۸۹)");
+      showValidation(
+        "شماره تماس ۱۱ رقمی معتبر وارد کنید (مثال: ۰۹۱۲۳۴۵۶۷۸۹)",
+        "phone"
+      );
       return;
     }
     setPhone(contactPhone);
+    setAddress(trimmedAddress);
 
     setLoading(true);
     try {
       if (demo) {
+        try {
+          localStorage.setItem(ADDRESS_STORAGE_KEY, trimmedAddress);
+        } catch {
+          /* ignore */
+        }
         clear();
         toast.success("سفارش نمونه ثبت شد (حالت بررسی)");
         router.push("/orders/success?id=demo-order-1");
@@ -78,14 +139,16 @@ export function CheckoutForm({
           user_id: user.id,
           status: "pending_confirmation",
           total_amount: total,
-          shipping_address: address.trim(),
+          shipping_address: trimmedAddress,
           contact_phone: contactPhone,
         })
         .select("id")
         .single();
 
       if (orderError || !order) {
-        setError(orderError?.message || "ثبت سفارش ناموفق بود");
+        const msg = orderError?.message || "ثبت سفارش ناموفق بود";
+        setError(msg);
+        toast.error(msg);
         return;
       }
 
@@ -104,7 +167,14 @@ export function CheckoutForm({
 
       if (itemsError) {
         setError(itemsError.message);
+        toast.error(itemsError.message);
         return;
+      }
+
+      try {
+        localStorage.setItem(ADDRESS_STORAGE_KEY, trimmedAddress);
+      } catch {
+        /* ignore */
       }
 
       try {
@@ -121,6 +191,7 @@ export function CheckoutForm({
       router.push(`/orders/success?id=${order.id}`);
     } catch {
       setError("خطا در ثبت سفارش");
+      toast.error("خطا در ثبت سفارش");
     } finally {
       setLoading(false);
     }
@@ -135,34 +206,71 @@ export function CheckoutForm({
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_320px]">
+    <form
+      onSubmit={submit}
+      noValidate
+      className="grid gap-6 lg:grid-cols-[1fr_320px]"
+    >
       <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
         <div className="space-y-1.5">
           <Label htmlFor="phone">شماره تماس</Label>
           <Input
+            ref={phoneRef}
             id="phone"
             inputMode="tel"
             dir="ltr"
-            className="text-left tracking-wide"
+            className={cn(
+              "text-left tracking-wide",
+              fieldErrors.phone && "border-rose-500 focus-visible:ring-rose-500"
+            )}
             value={phone}
-            onChange={(e) => setPhone(sanitizePhoneInput(e.target.value))}
+            onChange={(e) => {
+              setPhone(sanitizePhoneInput(e.target.value));
+              if (fieldErrors.phone) {
+                setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+              }
+            }}
             placeholder="09123456789"
             maxLength={PHONE_LOCAL_LENGTH}
             autoComplete="tel"
-            required
+            aria-invalid={Boolean(fieldErrors.phone)}
+            aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
           />
+          {fieldErrors.phone && (
+            <p id="phone-error" className="text-sm text-rose-600">
+              {fieldErrors.phone}
+            </p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="address">آدرس ارسال</Label>
           <Textarea
+            ref={addressRef}
             id="address"
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
+            onChange={(e) => {
+              setAddress(e.target.value);
+              if (fieldErrors.address) {
+                setFieldErrors((prev) => ({ ...prev, address: undefined }));
+              }
+            }}
             placeholder="استان، شهر، خیابان، پلاک، واحد..."
-            required
+            className={cn(
+              fieldErrors.address &&
+                "border-rose-500 focus-visible:ring-rose-500"
+            )}
+            aria-invalid={Boolean(fieldErrors.address)}
+            aria-describedby={fieldErrors.address ? "address-error" : undefined}
           />
+          {fieldErrors.address && (
+            <p id="address-error" className="text-sm text-rose-600">
+              {fieldErrors.address}
+            </p>
+          )}
         </div>
-        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {error && !fieldErrors.address && !fieldErrors.phone && (
+          <p className="text-sm text-rose-600">{error}</p>
+        )}
       </div>
 
       <aside className="h-fit space-y-4 rounded-2xl border border-slate-200 bg-white p-5">

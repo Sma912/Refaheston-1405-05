@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { BaleChannelWebhookPanel } from "@/components/admin/bale-channel-webhook-panel";
 
 const SCOPE_LABEL: Record<ProductListScope, string> = {
   mobile: "موبایل",
@@ -41,12 +42,18 @@ export default function ImportProductsPage() {
 
   const previewScopes = useMemo(() => {
     if (!parsed) return [];
+    if (forceScope !== "auto") return [forceScope];
     const set = new Set<ProductListScope>();
     for (const p of parsed.products) {
       set.add(isNonRegistryOrigin(p.origin) ? "iphone-noreg" : "mobile");
     }
     return [...set];
-  }, [parsed]);
+  }, [parsed, forceScope]);
+
+  function previewScopeForProduct(origin: string | null | undefined): ProductListScope {
+    if (forceScope !== "auto") return forceScope;
+    return isNonRegistryOrigin(origin) ? "iphone-noreg" : "mobile";
+  }
 
   async function confirmImport() {
     if (!parsed || parsed.products.length === 0) {
@@ -102,6 +109,8 @@ export default function ImportProductsPage() {
           همگام می‌شوند.
         </p>
       </div>
+
+      <BaleChannelWebhookPanel />
 
       <Textarea
         value={raw}
@@ -178,9 +187,7 @@ export default function ImportProductsPage() {
                 {parsed.products.map((p, idx) => (
                   <TableRow key={`${p.brand}-${p.model}-${p.color}-${idx}`}>
                     <TableCell>
-                      {SCOPE_LABEL[
-                        isNonRegistryOrigin(p.origin) ? "iphone-noreg" : "mobile"
-                      ]}
+                      {SCOPE_LABEL[previewScopeForProduct(p.origin)]}
                     </TableCell>
                     <TableCell>{p.brand}</TableCell>
                     <TableCell>{p.model}</TableCell>

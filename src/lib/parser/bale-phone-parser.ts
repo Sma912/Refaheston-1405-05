@@ -28,20 +28,24 @@ const KNOWN_ORIGINS = [
 export function isNonRegistryOrigin(origin: string | null | undefined): boolean {
   if (!origin) return false;
   const n = origin.trim().toLowerCase().replace(/\s+/g, " ");
-  return (
-    n === "not zaa" ||
-    n === "not ch" ||
-    n.includes("not zaa") ||
-    n.includes("not ch") ||
-    n.includes("non active") ||
-    n.includes("بدون رجیستر")
-  );
+  if (n === "not zaa" || n === "not za/a" || n === "not za a") return true;
+  if (n === "not ch" || n === "not ch/a") return true;
+  if (/^not\s*za\s*\/?\s*a$/.test(n)) return true;
+  if (/^not\s*ch\s*\/?\s*a?$/.test(n)) return true;
+  if (n.includes("non active") || n.includes("non-active")) return true;
+  if (n.includes("بدون رجیستر") || n.includes("بدون کد")) return true;
+  // Avoid matching unrelated phrases like "not china"
+  if (/\bnot\s+zaa?\b/.test(n) || /\bnot\s+za\/a\b/.test(n)) return true;
+  if (/\bnot\s+ch\b/.test(n) || /\bnot\s+ch\/a\b/.test(n)) return true;
+  return false;
 }
 
 export function normalizeNonRegistryOrigin(origin: string): string {
   const n = origin.trim().toLowerCase().replace(/\s+/g, " ");
-  if (/not\s*zaa/.test(n) || /not\s*za\/a/.test(n)) return "Not ZAA";
-  if (/not\s*ch\b/.test(n) || /not\s*ch\/a/.test(n)) return "Not CH";
+  if (/not\s*za\s*\/?\s*a/.test(n) || /not\s*zaa/.test(n)) return "Not ZAA";
+  if (/not\s*ch\s*\/?\s*a?/.test(n) || /not\s*ch\b/.test(n)) return "Not CH";
+  if (n.includes("non active") || n.includes("non-active")) return "Not ZAA";
+  if (n.includes("بدون رجیستر") || n.includes("بدون کد")) return "Not ZAA";
   return origin.trim();
 }
 
@@ -113,11 +117,24 @@ export function normalizeIphoneModel(model: string): string {
 function extractOrigin(text: string): { origin: string | null; rest: string } {
   let rest = text;
 
-  const notMatch = rest.match(/\bNot\s+(ZAA|CH)\b/i);
+  // Not ZAA / Not ZA/A / Not CH / Not CH/A (before generic ZA/A, CH/A)
+  const notMatch = rest.match(/\bNot\s+(ZA\s*\/?\s*A|ZAA|CH\s*\/?\s*A|CH)\b/i);
   if (notMatch) {
     const origin = normalizeNonRegistryOrigin(notMatch[0]);
     rest = rest.replace(notMatch[0], " ").replace(/\s+/g, " ").trim();
     return { origin, rest };
+  }
+
+  const nonActive = rest.match(/\bnon[-\s]?active\b/i);
+  if (nonActive) {
+    rest = rest.replace(nonActive[0], " ").replace(/\s+/g, " ").trim();
+    return { origin: "Not ZAA", rest };
+  }
+
+  const faNoreg = rest.match(/بدون\s*(کد\s*)?رجیستر[یي]?/u);
+  if (faNoreg) {
+    rest = rest.replace(faNoreg[0], " ").replace(/\s+/g, " ").trim();
+    return { origin: "Not ZAA", rest };
   }
 
   for (const origin of KNOWN_ORIGINS) {
