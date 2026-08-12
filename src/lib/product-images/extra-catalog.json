@@ -1,27 +1,27 @@
 [
   {
     "match": ["dual sence"],
-    "image": "/product-images/extras/dualsense.png",
+    "image": "/product-images/extras/dualsense.jpg",
     "label": "DualSense"
   },
   {
     "match": ["dual sense"],
-    "image": "/product-images/extras/dualsense.png",
+    "image": "/product-images/extras/dualsense.jpg",
     "label": "DualSense"
   },
   {
     "match": ["ps5 slim", "drive"],
-    "image": "/product-images/extras/ps5-official.png",
+    "image": "/product-images/extras/ps5-official.jpg",
     "label": "PS5 Slim Drive"
   },
   {
     "match": ["ps5 slim", "digital"],
-    "image": "/product-images/extras/ps5-official.png",
+    "image": "/product-images/extras/ps5-official.jpg",
     "label": "PS5 Slim Digital"
   },
   {
     "match": ["ps5"],
-    "image": "/product-images/extras/ps5-official.png",
+    "image": "/product-images/extras/ps5-official.jpg",
     "label": "PS5"
   },
   {

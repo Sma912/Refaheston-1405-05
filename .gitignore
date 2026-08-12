@@ -43,6 +43,9 @@ yarn-error.log*
 # cached product images (downloaded once, then served locally)
 /public/product-images/*
 !/public/product-images/.gitkeep
+# curated studio shots for tablets/consoles (committed for production)
+!/public/product-images/extras/
+!/public/product-images/extras/**
 
 # typescript
 *.tsbuildinfo
