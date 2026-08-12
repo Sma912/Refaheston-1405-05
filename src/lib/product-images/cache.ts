@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
 import hamrahtelCatalog from "./hamrahtel-catalog.json";
+import extraCatalog from "./extra-catalog.json";
 
 const IMAGE_DIR = path.join(process.cwd(), "public", "product-images");
 const INDEX_PATH = path.join(IMAGE_DIR, "index.json");
@@ -357,7 +358,33 @@ function modelNameCompatible(queryModel: string, candidateName: string) {
   return true;
 }
 
+function findExtraCatalogImage(model: string): { image: string; label: string } | null {
+  const hay = model.toLowerCase();
+  type Extra = { match: string[]; image: string; label: string };
+  let best: Extra | null = null;
+  let bestHits = 0;
+  for (const entry of extraCatalog as Extra[]) {
+    const hits = entry.match.filter((t) => hay.includes(t.toLowerCase())).length;
+    if (hits === entry.match.length && hits > bestHits) {
+      bestHits = hits;
+      best = entry;
+    }
+  }
+  return best ? { image: best.image, label: best.label } : null;
+}
+
 function findCatalogImage(model: string): CatalogEntry | null {
+  const extra = findExtraCatalogImage(model);
+  if (extra) {
+    return {
+      model,
+      hamrahtelName: extra.label,
+      hamrahtelSlug: "",
+      image: extra.image,
+      score: 1,
+    };
+  }
+
   let best: CatalogEntry | null = null;
   let bestScore = 0;
   for (const entry of catalog) {

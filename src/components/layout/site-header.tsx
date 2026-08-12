@@ -2,9 +2,17 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
-import { ShoppingCart, User, LogOut, Menu, X, Shield } from "lucide-react";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  ShoppingCart,
+  User,
+  LogOut,
+  Menu,
+  X,
+  Shield,
+  ChevronDown,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useCartStore } from "@/lib/cart/store";
 import { createClient } from "@/lib/supabase/client";
 import { isDemoMode } from "@/lib/demo/config";
@@ -12,14 +20,34 @@ import { DEMO_ADMIN } from "@/lib/demo/data";
 import { Button } from "@/components/ui/button";
 import type { Profile } from "@/types/database";
 
+const PRODUCT_MENU = [
+  { href: "/", label: "همه محصولات", cat: "" },
+  { href: "/?cat=mobile", label: "موبایل", cat: "mobile" },
+  {
+    href: "/?cat=iphone-noreg",
+    label: "آیفون بدون رجیستری",
+    cat: "iphone-noreg",
+  },
+  { href: "/?cat=ipad", label: "آیپد", cat: "ipad" },
+  { href: "/?cat=xiaomi-pad", label: "تبلت شیائومی", cat: "xiaomi-pad" },
+  { href: "/?cat=console", label: "کنسول بازی", cat: "console" },
+];
+
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const totalItems = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
+  const searchParams = useSearchParams();
+  const totalItems = useCartStore((s) =>
+    s.items.reduce((n, i) => n + i.quantity, 0)
+  );
   const [menuOpen, setMenuOpen] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
+  const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const demo = isDemoMode();
+  const dropRef = useRef<HTMLDivElement>(null);
+  const activeCat = searchParams.get("cat") ?? "";
 
   useEffect(() => {
     let mounted = true;
@@ -65,6 +93,16 @@ export function SiteHeader() {
     };
   }, [pathname, demo]);
 
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!dropRef.current?.contains(e.target as Node)) {
+        setProductsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
   async function logout() {
     if (demo) {
       router.push("/");
@@ -77,8 +115,7 @@ export function SiteHeader() {
     router.refresh();
   }
 
-  const nav = [
-    { href: "/", label: "محصولات" },
+  const otherNav = [
     { href: "/about", label: "درباره ما" },
     { href: "/orders", label: "سفارش‌های من" },
     { href: "/profile", label: "پروفایل" },
@@ -99,7 +136,48 @@ export function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">
-          {nav.map((item) => (
+          <div className="relative" ref={dropRef}>
+            <button
+              type="button"
+              onClick={() => setProductsOpen((v) => !v)}
+              className={`inline-flex items-center gap-1 text-sm font-medium transition-colors ${
+                pathname === "/"
+                  ? "text-[var(--brand-red)]"
+                  : "text-slate-600 hover:text-[var(--brand-blue)]"
+              }`}
+              aria-expanded={productsOpen}
+            >
+              محصولات
+              <ChevronDown
+                className={`h-4 w-4 transition ${productsOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {productsOpen && (
+              <div className="absolute right-0 top-full z-50 mt-2 min-w-[220px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                {PRODUCT_MENU.map((item) => {
+                  const active =
+                    pathname === "/" &&
+                    (item.cat ? activeCat === item.cat : !activeCat);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setProductsOpen(false)}
+                      className={`block px-4 py-2.5 text-sm transition ${
+                        active
+                          ? "bg-slate-50 font-semibold text-[var(--brand-blue)]"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {otherNav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -134,7 +212,12 @@ export function SiteHeader() {
           </Link>
 
           {!loading && profile ? (
-            <Button variant="ghost" size="sm" onClick={logout} className="hidden sm:inline-flex">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={logout}
+              className="hidden sm:inline-flex"
+            >
               <LogOut className="h-4 w-4" />
               خروج
             </Button>
@@ -162,8 +245,32 @@ export function SiteHeader() {
 
       {menuOpen && (
         <div className="border-t border-slate-100 bg-white px-4 py-3 md:hidden">
-          <div className="flex flex-col gap-2">
-            {nav.map((item) => (
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => setMobileProductsOpen((v) => !v)}
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-slate-50"
+            >
+              محصولات
+              <ChevronDown
+                className={`h-4 w-4 transition ${mobileProductsOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {mobileProductsOpen && (
+              <div className="mb-1 mr-2 space-y-1 border-r border-slate-100 pr-2">
+                {PRODUCT_MENU.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+            {otherNav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

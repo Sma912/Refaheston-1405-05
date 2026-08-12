@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export type ShopCategory = {
@@ -17,7 +17,8 @@ export const SHOP_CATEGORIES: ShopCategory[] = [
     label: "آیفون بدون رجیستری",
     enabled: true,
   },
-  { id: "tablet", label: "تبلت", enabled: true },
+  { id: "ipad", label: "آیپد", enabled: true },
+  { id: "xiaomi-pad", label: "تبلت شیائومی", enabled: true },
   { id: "console", label: "کنسول بازی", enabled: true },
   { id: "laptop", label: "لپ‌تاپ", enabled: false },
   { id: "accessory", label: "لوازم جانبی", enabled: false },
@@ -47,9 +48,17 @@ export function CategoryBrandNav({
     return selectedBrand;
   }, [selectedBrand]);
 
+  const showBrands = [
+    "mobile",
+    "iphone-noreg",
+    "ipad",
+    "xiaomi-pad",
+    "console",
+    "tablet",
+  ].includes(selectedCategory);
+
   return (
     <div className="space-y-3">
-      {/* Category tabs — future categories appear here */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {SHOP_CATEGORIES.map((cat) => {
           const active = selectedCategory === cat.id;
@@ -81,68 +90,47 @@ export function CategoryBrandNav({
         })}
       </div>
 
-      {/* Brand accordion — for mobile & non-registry iPhone lists */}
-      {(selectedCategory === "mobile" ||
-        selectedCategory === "iphone-noreg" ||
-        selectedCategory === "tablet" ||
-        selectedCategory === "console") && (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {showBrands && (
+        <div className="rounded-2xl border border-slate-200 bg-white">
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-right"
+            className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-slate-700"
           >
-            <div>
-              <p className="text-xs text-slate-500">انتخاب برند</p>
-              <p className="text-sm font-semibold text-slate-900">
-                {selectedBrandLabel}
-                {selectedBrand
-                  ? ` (${(brandCounts[selectedBrand] ?? 0).toLocaleString("fa-IR")})`
-                  : ` (${brands.reduce((n, b) => n + (brandCounts[b] ?? 0), 0).toLocaleString("fa-IR")})`}
-              </p>
-            </div>
+            برند: {selectedBrandLabel}
             <ChevronDown
-              className={cn(
-                "h-5 w-5 text-slate-500 transition-transform",
-                open && "rotate-180"
-              )}
+              className={cn("h-4 w-4 transition", open && "rotate-180")}
             />
           </button>
-
           {open && (
-            <div className="border-t border-slate-100 px-3 py-3">
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 border-t border-slate-100 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => onBrandChange("")}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs font-medium ring-1",
+                  !selectedBrand
+                    ? "bg-[var(--brand-blue)] text-white ring-[var(--brand-blue)]"
+                    : "bg-white text-slate-600 ring-slate-200"
+                )}
+              >
+                همه ({brands.reduce((n, b) => n + (brandCounts[b] ?? 0), 0)})
+              </button>
+              {brands.map((b) => (
                 <button
+                  key={b}
                   type="button"
-                  onClick={() => onBrandChange("")}
+                  onClick={() => onBrandChange(b)}
                   className={cn(
-                    "rounded-lg px-3 py-1.5 text-sm transition",
-                    !selectedBrand
-                      ? "bg-[var(--brand-red)] text-white"
-                      : "bg-slate-50 text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
+                    "rounded-full px-3 py-1.5 text-xs font-medium ring-1",
+                    selectedBrand === b
+                      ? "bg-[var(--brand-blue)] text-white ring-[var(--brand-blue)]"
+                      : "bg-white text-slate-600 ring-slate-200"
                   )}
                 >
-                  همه برندها
+                  {b} ({brandCounts[b] ?? 0})
                 </button>
-                {brands.map((b) => (
-                  <button
-                    key={b}
-                    type="button"
-                    onClick={() => onBrandChange(b)}
-                    className={cn(
-                      "rounded-lg px-3 py-1.5 text-sm transition",
-                      selectedBrand === b
-                        ? "bg-[var(--brand-blue)] text-white"
-                        : "bg-slate-50 text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
-                    )}
-                  >
-                    {b}
-                    <span className="mr-1 opacity-70">
-                      {(brandCounts[b] ?? 0).toLocaleString("fa-IR")}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              ))}
             </div>
           )}
         </div>

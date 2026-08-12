@@ -5,12 +5,20 @@ import {
 } from "@/lib/parser/bale-phone-parser";
 import type { ParsedProduct, Product } from "@/types/database";
 
-export type ProductListScope = "mobile" | "iphone-noreg" | "tablet" | "console";
+export type ProductListScope =
+  | "mobile"
+  | "iphone-noreg"
+  | "tablet"
+  | "ipad"
+  | "xiaomi-pad"
+  | "console";
 
 export const CATEGORY_SLUGS: Record<ProductListScope, string> = {
   mobile: "mobile",
   "iphone-noreg": "iphone-noreg",
   tablet: "tablet",
+  ipad: "ipad",
+  "xiaomi-pad": "xiaomi-pad",
   console: "console",
 };
 
@@ -18,7 +26,18 @@ export const DEMO_CATEGORY_IDS: Record<ProductListScope, string> = {
   mobile: "demo-cat-mobile",
   "iphone-noreg": "demo-cat-iphone-noreg",
   tablet: "demo-cat-tablet",
+  ipad: "demo-cat-ipad",
+  "xiaomi-pad": "demo-cat-xiaomi-pad",
   console: "demo-cat-console",
+};
+
+export const SCOPE_LABELS: Record<ProductListScope, string> = {
+  mobile: "موبایل",
+  "iphone-noreg": "آیفون بدون رجیستری",
+  tablet: "تبلت",
+  ipad: "آیپد",
+  "xiaomi-pad": "تبلت شیائومی",
+  console: "کنسول بازی",
 };
 
 export type SyncProductRow = {
@@ -75,14 +94,42 @@ export function productVariantKey(p: {
     .toLowerCase();
 }
 
+function modelHay(p: { brand?: string | null; model?: string | null }) {
+  return `${p.brand ?? ""} ${p.model ?? ""}`.toLowerCase();
+}
+
+export function isIpadProduct(p: {
+  brand?: string | null;
+  model?: string | null;
+  category_id?: string | null;
+}): boolean {
+  if (
+    p.category_id === DEMO_CATEGORY_IDS.ipad ||
+    p.category_id === DEMO_CATEGORY_IDS.tablet
+  ) {
+    const m = modelHay(p);
+    if (/xiaomi\s*pad|redmi\s*pad/.test(m)) return false;
+    if (p.category_id === DEMO_CATEGORY_IDS.ipad) return true;
+  }
+  return /\bipad\b/.test(modelHay(p));
+}
+
+export function isXiaomiPadProduct(p: {
+  brand?: string | null;
+  model?: string | null;
+  category_id?: string | null;
+}): boolean {
+  if (p.category_id === DEMO_CATEGORY_IDS["xiaomi-pad"]) return true;
+  const m = modelHay(p);
+  return /xiaomi\s*pad/.test(m) || /redmi\s*pad/.test(m);
+}
+
 export function isTabletProduct(p: {
   brand?: string | null;
   model?: string | null;
   category_id?: string | null;
 }): boolean {
-  if (p.category_id === DEMO_CATEGORY_IDS.tablet) return true;
-  const m = `${p.brand ?? ""} ${p.model ?? ""}`.toLowerCase();
-  return /\bipad\b/.test(m) || /xiaomi\s*pad/.test(m) || /redmi\s*pad/.test(m);
+  return isIpadProduct(p) || isXiaomiPadProduct(p);
 }
 
 export function isConsoleProduct(p: {
@@ -91,7 +138,7 @@ export function isConsoleProduct(p: {
   category_id?: string | null;
 }): boolean {
   if (p.category_id === DEMO_CATEGORY_IDS.console) return true;
-  const m = `${p.brand ?? ""} ${p.model ?? ""}`.toLowerCase();
+  const m = modelHay(p);
   return (
     /\bps5\b/.test(m) ||
     /\bps4\b/.test(m) ||
@@ -105,7 +152,8 @@ export function isConsoleProduct(p: {
 export function scopeForParsedProduct(p: ParsedProduct): ProductListScope {
   if (isNonRegistryOrigin(p.origin)) return "iphone-noreg";
   if (isConsoleProduct(p)) return "console";
-  if (isTabletProduct(p)) return "tablet";
+  if (isIpadProduct(p)) return "ipad";
+  if (isXiaomiPadProduct(p)) return "xiaomi-pad";
   return "mobile";
 }
 
@@ -124,8 +172,17 @@ export function scopeForProduct(
   ) {
     return "iphone-noreg";
   }
-  if (p.category_id === DEMO_CATEGORY_IDS.tablet || isTabletProduct(p)) {
-    return "tablet";
+  if (p.category_id === DEMO_CATEGORY_IDS.ipad || isIpadProduct(p)) {
+    return "ipad";
+  }
+  if (
+    p.category_id === DEMO_CATEGORY_IDS["xiaomi-pad"] ||
+    isXiaomiPadProduct(p)
+  ) {
+    return "xiaomi-pad";
+  }
+  if (p.category_id === DEMO_CATEGORY_IDS.tablet && isTabletProduct(p)) {
+    return isIpadProduct(p) ? "ipad" : "xiaomi-pad";
   }
   if (p.category_id === DEMO_CATEGORY_IDS.console || isConsoleProduct(p)) {
     return "console";
@@ -155,22 +212,26 @@ export function planDeactivations(
   return deactivate;
 }
 
+function emptyKeysByScope(): Record<ProductListScope, Set<string>> {
+  return {
+    mobile: new Set(),
+    "iphone-noreg": new Set(),
+    tablet: new Set(),
+    ipad: new Set(),
+    "xiaomi-pad": new Set(),
+    console: new Set(),
+  };
+}
+
 export function buildProductSyncPlan(
   rawText: string,
   forceScope?: ProductListScope | "auto"
 ): ProductSyncPlan {
   const parsed = parseBalePhoneText(rawText);
-  // Always stamp with sync time so product pages show when the site last updated prices.
-  // Channel 📅 date is only used for seed/demo initial data, not sync operations.
   const stampedAt = new Date().toISOString();
 
   const rows: SyncProductRow[] = [];
-  const keysByScope: Record<ProductListScope, Set<string>> = {
-    mobile: new Set(),
-    "iphone-noreg": new Set(),
-    tablet: new Set(),
-    console: new Set(),
-  };
+  const keysByScope = emptyKeysByScope();
 
   for (const p of parsed.products) {
     const detected = scopeForParsedProduct(p);
@@ -178,14 +239,15 @@ export function buildProductSyncPlan(
       forceScope && forceScope !== "auto" ? forceScope : detected;
     let origin = p.origin;
     if (scope === "iphone-noreg" && !isNonRegistryOrigin(origin)) {
-      // forceScope یا دسته بدون‌کد: مبدأ را برای کاتالوگ/قیمت مشخص نگه دار
       origin = origin?.trim() ? origin : "Not ZAA";
     }
     let price = p.price;
     // لیست‌های بازار توسعه برای تبلت/کنسول معمولاً به هزار تومان‌اند
-    // (آیفون noreg همان ضرب را در parseBalePhoneText دارد)
     if (
-      (scope === "tablet" || scope === "console") &&
+      (scope === "tablet" ||
+        scope === "ipad" ||
+        scope === "xiaomi-pad" ||
+        scope === "console") &&
       price > 0 &&
       price < 10_000_000
     ) {
@@ -245,7 +307,6 @@ export function applySyncToProductList(
         is_active: true,
         raw_import_text: row.raw_import_text,
         category_id: DEMO_CATEGORY_IDS[row.scope],
-        // Always refresh stamp on sync (even if price unchanged)
         updated_at: plan.stampedAt,
         image_url: prev.image_url,
       });

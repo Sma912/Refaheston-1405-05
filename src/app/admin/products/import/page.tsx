@@ -25,6 +25,8 @@ const SCOPE_LABEL: Record<ProductListScope, string> = {
   mobile: "موبایل",
   "iphone-noreg": "آیفون بدون رجیستری",
   tablet: "تبلت",
+  ipad: "آیپد",
+  "xiaomi-pad": "تبلت شیائومی",
   console: "کنسول بازی",
 };
 
@@ -136,7 +138,8 @@ export default function ImportProductsPage() {
           <option value="auto">خودکار از روی متن</option>
           <option value="mobile">فقط موبایل</option>
           <option value="iphone-noreg">فقط آیفون بدون رجیستری</option>
-          <option value="tablet">فقط تبلت</option>
+          <option value="ipad">فقط آیپد</option>
+          <option value="xiaomi-pad">فقط تبلت شیائومی</option>
           <option value="console">فقط کنسول بازی</option>
         </select>
       </div>

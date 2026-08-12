@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { ProductCatalog } from "@/components/product/product-catalog";
 import { isDemoMode } from "@/lib/demo/config";
 import { DEMO_PRODUCTS } from "@/lib/demo/data";
 import { useDemoStore } from "@/lib/demo/store";
 import type { Product } from "@/types/database";
+
+function CatalogInner({ products }: { products: Product[] }) {
+  return <ProductCatalog products={products} />;
+}
 
 export function StoreProductCatalog({
   initialProducts,
@@ -27,5 +31,15 @@ export function StoreProductCatalog({
     : initialProducts
   ).filter((p) => p.is_active);
 
-  return <ProductCatalog products={products} />;
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center text-slate-400">
+          در حال بارگذاری کاتالوگ...
+        </div>
+      }
+    >
+      <CatalogInner products={products} />
+    </Suspense>
+  );
 }

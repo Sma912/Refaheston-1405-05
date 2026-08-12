@@ -13,56 +13,45 @@ import type { Product } from "@/types/database";
 async function resolveCategoryIds(
   admin: ReturnType<typeof createAdminClient>
 ): Promise<Record<ProductListScope, string | null>> {
+  const wanted: { scope: ProductListScope; name: string; slug: string }[] = [
+    { scope: "mobile", name: "موبایل", slug: "mobile" },
+    { scope: "iphone-noreg", name: "آیفون بدون رجیستری", slug: "iphone-noreg" },
+    { scope: "tablet", name: "تبلت", slug: "tablet" },
+    { scope: "ipad", name: "آیپد", slug: "ipad" },
+    { scope: "xiaomi-pad", name: "تبلت شیائومی", slug: "xiaomi-pad" },
+    { scope: "console", name: "کنسول بازی", slug: "console" },
+  ];
+
   const { data } = await admin
     .from("categories")
     .select("id, slug")
-    .in("slug", Object.values(CATEGORY_SLUGS));
+    .in(
+      "slug",
+      wanted.map((w) => w.slug)
+    );
 
   const map: Record<ProductListScope, string | null> = {
     mobile: null,
     "iphone-noreg": null,
     tablet: null,
+    ipad: null,
+    "xiaomi-pad": null,
     console: null,
   };
 
   for (const row of data ?? []) {
-    if (row.slug === "mobile") map.mobile = row.id;
-    if (row.slug === "iphone-noreg") map["iphone-noreg"] = row.id;
-    if (row.slug === "tablet") map.tablet = row.id;
-    if (row.slug === "console") map.console = row.id;
+    const hit = wanted.find((w) => w.slug === row.slug);
+    if (hit) map[hit.scope] = row.id;
   }
 
-  if (!map["iphone-noreg"]) {
+  for (const w of wanted) {
+    if (map[w.scope]) continue;
     const { data: created } = await admin
       .from("categories")
-      .upsert(
-        { name: "آیفون بدون رجیستری", slug: "iphone-noreg" },
-        { onConflict: "slug" }
-      )
+      .upsert({ name: w.name, slug: w.slug }, { onConflict: "slug" })
       .select("id")
       .maybeSingle();
-    map["iphone-noreg"] = created?.id ?? null;
-  }
-
-  if (!map.tablet) {
-    const { data: created } = await admin
-      .from("categories")
-      .upsert({ name: "تبلت", slug: "tablet" }, { onConflict: "slug" })
-      .select("id")
-      .maybeSingle();
-    map.tablet = created?.id ?? null;
-  }
-
-  if (!map.console) {
-    const { data: created } = await admin
-      .from("categories")
-      .upsert(
-        { name: "کنسول بازی", slug: "console" },
-        { onConflict: "slug" }
-      )
-      .select("id")
-      .maybeSingle();
-    map.console = created?.id ?? null;
+    map[w.scope] = created?.id ?? null;
   }
 
   return map;

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Product } from "@/types/database";
 import { ProductCard } from "@/components/product/product-card";
 import { CategoryBrandNav } from "@/components/shop/category-brand-nav";
@@ -12,8 +13,18 @@ import { isNonRegistryOrigin } from "@/lib/parser/bale-phone-parser";
 import { DEMO_CAT_IPHONE_NOREG } from "@/lib/demo/data";
 import {
   isConsoleProduct,
-  isTabletProduct,
+  isIpadProduct,
+  isXiaomiPadProduct,
 } from "@/lib/products/sync";
+
+const ENABLED_CATS = new Set([
+  "mobile",
+  "iphone-noreg",
+  "ipad",
+  "xiaomi-pad",
+  "console",
+  "tablet",
+]);
 
 /** تشخیص تب «آیفون بدون رجیستری» در کاتالوگ فروشگاه */
 export function isNoregCatalogProduct(product: {
@@ -30,17 +41,26 @@ export function isNoregCatalogProduct(product: {
 
 function inCategory(product: Product, category: string): boolean {
   const noreg = isNoregCatalogProduct(product);
-  const tablet = isTabletProduct(product);
+  const ipad = isIpadProduct(product);
+  const xiaomiPad = isXiaomiPadProduct(product);
   const console_ = isConsoleProduct(product);
   if (category === "iphone-noreg") return noreg;
-  if (category === "tablet") return tablet && !noreg;
+  if (category === "ipad") return ipad && !noreg;
+  if (category === "xiaomi-pad") return xiaomiPad && !noreg;
+  if (category === "tablet") return (ipad || xiaomiPad) && !noreg;
   if (category === "console") return console_;
-  if (category === "mobile") return !noreg && !tablet && !console_;
+  if (category === "mobile") return !noreg && !ipad && !xiaomiPad && !console_;
   return false;
 }
 
 export function ProductCatalog({ products }: { products: Product[] }) {
-  const [category, setCategory] = useState("mobile");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const catFromUrl = searchParams.get("cat") || "mobile";
+  const initialCat = ENABLED_CATS.has(catFromUrl) ? catFromUrl : "mobile";
+
+  const [category, setCategory] = useState(initialCat);
   const [q, setQ] = useState("");
   const [brand, setBrand] = useState("");
   const [storage, setStorage] = useState("");
@@ -48,6 +68,26 @@ export function ProductCatalog({ products }: { products: Product[] }) {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    const next = searchParams.get("cat") || "mobile";
+    if (ENABLED_CATS.has(next) && next !== category) {
+      setCategory(next);
+      setBrand("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  function selectCategory(id: string) {
+    setCategory(id);
+    setBrand("");
+    resetFilters();
+    const params = new URLSearchParams(searchParams.toString());
+    if (!id || id === "mobile") params.delete("cat");
+    else params.set("cat", id);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
 
   const categoryProducts = useMemo(
     () => products.filter((p) => inCategory(p, category)),
@@ -87,13 +127,7 @@ export function ProductCatalog({ products }: { products: Product[] }) {
   );
 
   const filtered = useMemo(() => {
-    if (
-      category !== "mobile" &&
-      category !== "iphone-noreg" &&
-      category !== "tablet" &&
-      category !== "console"
-    )
-      return [];
+    if (!ENABLED_CATS.has(category)) return [];
     return categoryProducts.filter((p) => {
       const hay =
         `${p.brand} ${p.model} ${p.color} ${p.origin ?? ""}`.toLowerCase();
@@ -116,9 +150,8 @@ export function ProductCatalog({ products }: { products: Product[] }) {
     maxPrice,
   ]);
 
-  function reset() {
+  function resetFilters() {
     setQ("");
-    setBrand("");
     setStorage("");
     setRam("");
     setMinPrice("");
@@ -132,11 +165,7 @@ export function ProductCatalog({ products }: { products: Product[] }) {
         brandCounts={brandCounts}
         selectedCategory={category}
         selectedBrand={brand}
-        onCategoryChange={(id) => {
-          setCategory(id);
-          setBrand("");
-          reset();
-        }}
+        onCategoryChange={selectCategory}
         onBrandChange={setBrand}
       />
 
@@ -212,7 +241,7 @@ export function ProductCatalog({ products }: { products: Product[] }) {
             />
           </div>
           <div className="sm:col-span-2 lg:col-span-4">
-            <Button type="button" variant="secondary" onClick={reset}>
+            <Button type="button" variant="secondary" onClick={resetFilters}>
               پاک کردن فیلترها
             </Button>
           </div>
@@ -223,10 +252,7 @@ export function ProductCatalog({ products }: { products: Product[] }) {
         <span>{filtered.length.toLocaleString("fa-IR")} محصول</span>
       </div>
 
-      {category !== "mobile" &&
-      category !== "iphone-noreg" &&
-      category !== "tablet" &&
-      category !== "console" ? (
+      {!ENABLED_CATS.has(category) ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-500">
           این دسته به‌زودی فعال می‌شود.
         </div>

@@ -1,0 +1,62 @@
+[
+  {
+    "match": ["ps5 slim", "drive"],
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/PlayStation_5_and_DualSense.jpg/960px-PlayStation_5_and_DualSense.jpg",
+    "label": "PS5 Slim Drive"
+  },
+  {
+    "match": ["ps5 slim", "digital"],
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/PlayStation_5_and_DualSense.jpg/960px-PlayStation_5_and_DualSense.jpg",
+    "label": "PS5 Slim Digital"
+  },
+  {
+    "match": ["dual sence"],
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Playstation_DualSense_Controller.png/960px-Playstation_DualSense_Controller.png",
+    "label": "DualSense"
+  },
+  {
+    "match": ["dual sense"],
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Playstation_DualSense_Controller.png/960px-Playstation_DualSense_Controller.png",
+    "label": "DualSense"
+  },
+  {
+    "match": ["ipad pro", "12.9"],
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Apple_iPad_Pro_11.jpg/960px-Apple_iPad_Pro_11.jpg",
+    "label": "iPad Pro"
+  },
+  {
+    "match": ["ipad pro", "11"],
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Apple_iPad_Pro_11.jpg/960px-Apple_iPad_Pro_11.jpg",
+    "label": "iPad Pro 11"
+  },
+  {
+    "match": ["ipad air"],
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Apple_iPad_Pro_11.jpg/960px-Apple_iPad_Pro_11.jpg",
+    "label": "iPad Air"
+  },
+  {
+    "match": ["ipad 11"],
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Apple_iPad_Pro_11.jpg/960px-Apple_iPad_Pro_11.jpg",
+    "label": "iPad 11"
+  },
+  {
+    "match": ["xiaomi pad 7"],
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Xiaomi_Pad_6S_Pro.jpg/960px-Xiaomi_Pad_6S_Pro.jpg",
+    "label": "Xiaomi Pad"
+  },
+  {
+    "match": ["xiaomi pad"],
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Xiaomi_Pad_6S_Pro.jpg/960px-Xiaomi_Pad_6S_Pro.jpg",
+    "label": "Xiaomi Pad"
+  },
+  {
+    "match": ["redmi pad 2 pro"],
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Xiaomi_Pad_6_display.jpg/960px-Xiaomi_Pad_6_display.jpg",
+    "label": "Redmi Pad 2 Pro"
+  },
+  {
+    "match": ["redmi pad"],
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Xiaomi_Pad_6_display.jpg/960px-Xiaomi_Pad_6_display.jpg",
+    "label": "Redmi Pad"
+  }
+]

@@ -7,10 +7,21 @@ import {
   type BaleUpdate,
 } from "@/lib/bale/channel-sync";
 import { getBaleWebhookSecret, looksLikeProductList } from "@/lib/bale/bot-api";
+import { syncProductsFromChannelText } from "@/lib/products/sync-server";
+import type { ProductListScope } from "@/lib/products/sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+const SCOPES = new Set<ProductListScope>([
+  "mobile",
+  "iphone-noreg",
+  "tablet",
+  "ipad",
+  "xiaomi-pad",
+  "console",
+]);
 
 /**
  * همگام‌سازی مستقیم متن لیست
@@ -34,6 +45,8 @@ export async function POST(req: NextRequest) {
       text?: string;
       chatId?: string;
       flushNow?: boolean;
+      forceScope?: ProductListScope | "auto";
+      source?: string;
     };
 
     if (typeof body.text === "string" && body.text.trim()) {
@@ -43,6 +56,29 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+
+      const forceScope =
+        body.forceScope &&
+        body.forceScope !== "auto" &&
+        SCOPES.has(body.forceScope)
+          ? body.forceScope
+          : "auto";
+
+      // مسیر مستقیم ربات مک/سرور: بدون بافر کانال
+      if (body.flushNow !== false) {
+        const result = await syncProductsFromChannelText({
+          rawText: body.text,
+          importedBy: null,
+          forceScope,
+          deactivateMissing: true,
+        });
+        return NextResponse.json({
+          ok: true,
+          result,
+          source: body.source ?? null,
+        });
+      }
+
       const chatId = body.chatId?.trim() || "manual";
       await enqueueChannelProductText({
         chatId,
