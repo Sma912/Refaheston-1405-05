@@ -99,13 +99,20 @@ export async function syncDobitkalaLaptops(opts?: {
   const admin = createAdminClient();
   const categoryId = await ensureLaptopCategory(admin);
 
-  const { data: existingRows, error: existingError } = await admin
-    .from("products")
-    .select("*")
-    .eq("category_id", categoryId);
-  if (existingError) throw new Error(existingError.message);
-
-  const existing = (existingRows as Product[]) ?? [];
+  const existing: Product[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const to = from + pageSize - 1;
+    const { data, error } = await admin
+      .from("products")
+      .select("*")
+      .eq("category_id", categoryId)
+      .range(from, to);
+    if (error) throw new Error(error.message);
+    const chunk = (data as Product[]) ?? [];
+    existing.push(...chunk);
+    if (chunk.length < pageSize) break;
+  }
   const byOrigin = new Map<string, Product[]>();
   for (const p of existing) {
     if (!p.origin?.startsWith("dobitkala:")) continue;
