@@ -14,6 +14,7 @@ import { DEMO_CAT_IPHONE_NOREG } from "@/lib/demo/data";
 import {
   isConsoleProduct,
   isIpadProduct,
+  isLaptopProduct,
   isXiaomiPadProduct,
 } from "@/lib/products/sync";
 
@@ -23,6 +24,7 @@ const ENABLED_CATS = new Set([
   "ipad",
   "xiaomi-pad",
   "console",
+  "laptop",
   "tablet",
 ]);
 
@@ -44,12 +46,15 @@ function inCategory(product: Product, category: string): boolean {
   const ipad = isIpadProduct(product);
   const xiaomiPad = isXiaomiPadProduct(product);
   const console_ = isConsoleProduct(product);
+  const laptop = isLaptopProduct(product);
   if (category === "iphone-noreg") return noreg;
   if (category === "ipad") return ipad && !noreg;
   if (category === "xiaomi-pad") return xiaomiPad && !noreg;
   if (category === "tablet") return (ipad || xiaomiPad) && !noreg;
   if (category === "console") return console_;
-  if (category === "mobile") return !noreg && !ipad && !xiaomiPad && !console_;
+  if (category === "laptop") return laptop;
+  if (category === "mobile")
+    return !noreg && !ipad && !xiaomiPad && !console_ && !laptop;
   return false;
 }
 

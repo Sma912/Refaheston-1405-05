@@ -20,6 +20,7 @@ async function resolveCategoryIds(
     { scope: "ipad", name: "آیپد", slug: "ipad" },
     { scope: "xiaomi-pad", name: "تبلت شیائومی", slug: "xiaomi-pad" },
     { scope: "console", name: "کنسول بازی", slug: "console" },
+    { scope: "laptop", name: "لپ‌تاپ", slug: "laptop" },
   ];
 
   const { data } = await admin
@@ -37,6 +38,7 @@ async function resolveCategoryIds(
     ipad: null,
     "xiaomi-pad": null,
     console: null,
+    laptop: null,
   };
 
   for (const row of data ?? []) {

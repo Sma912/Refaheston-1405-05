@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:parser": "npx tsx src/lib/parser/bale-phone-parser.test.ts"
+    "test:parser": "npx tsx src/lib/parser/bale-phone-parser.test.ts",
+    "sync:laptops": "npx tsx scripts/sync-dobit-laptops.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",

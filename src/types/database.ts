@@ -38,6 +38,12 @@ export interface Product {
   origin: string | null;
   description: string | null;
   image_url: string | null;
+  /** لپ‌تاپ: پردازنده */
+  cpu?: string | null;
+  /** لپ‌تاپ: گرافیک */
+  gpu?: string | null;
+  /** لپ‌تاپ: صفحه نمایش / رزولوشن */
+  display?: string | null;
   is_active: boolean;
   raw_import_text: string | null;
   created_at: string;

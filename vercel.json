@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/bale-channel-sync",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/dobitkala-laptops",
+      "schedule": "30 7 * * *"
     }
   ]
 }

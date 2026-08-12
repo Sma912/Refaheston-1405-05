@@ -7,7 +7,7 @@ import { isDemoMode } from "@/lib/demo/config";
 import { DEMO_SAMPLE_IMPORT_TEXT } from "@/lib/demo/data";
 import { useDemoStore } from "@/lib/demo/store";
 import type { ProductListScope, ProductSyncStats } from "@/lib/products/sync";
-import { scopeForParsedProduct } from "@/lib/products/sync";
+import { SCOPE_LABELS, scopeForParsedProduct } from "@/lib/products/sync";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -21,14 +21,7 @@ import {
 import { toast } from "sonner";
 import { BaleChannelWebhookPanel } from "@/components/admin/bale-channel-webhook-panel";
 
-const SCOPE_LABEL: Record<ProductListScope, string> = {
-  mobile: "موبایل",
-  "iphone-noreg": "آیفون بدون رجیستری",
-  tablet: "تبلت",
-  ipad: "آیپد",
-  "xiaomi-pad": "تبلت شیائومی",
-  console: "کنسول بازی",
-};
+const SCOPE_LABEL = SCOPE_LABELS;
 
 export default function ImportProductsPage() {
   const demo = isDemoMode();

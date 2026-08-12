@@ -52,3 +52,4 @@ yarn-error.log*
 
 # convenience dump for pasting into SQL Editor (source of truth is migrations/)
 /supabase/all-migrations-combined.sql
+supabase/.temp/

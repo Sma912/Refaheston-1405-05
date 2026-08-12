@@ -11,7 +11,8 @@ export type ProductListScope =
   | "tablet"
   | "ipad"
   | "xiaomi-pad"
-  | "console";
+  | "console"
+  | "laptop";
 
 export const CATEGORY_SLUGS: Record<ProductListScope, string> = {
   mobile: "mobile",
@@ -20,6 +21,7 @@ export const CATEGORY_SLUGS: Record<ProductListScope, string> = {
   ipad: "ipad",
   "xiaomi-pad": "xiaomi-pad",
   console: "console",
+  laptop: "laptop",
 };
 
 export const DEMO_CATEGORY_IDS: Record<ProductListScope, string> = {
@@ -29,6 +31,7 @@ export const DEMO_CATEGORY_IDS: Record<ProductListScope, string> = {
   ipad: "demo-cat-ipad",
   "xiaomi-pad": "demo-cat-xiaomi-pad",
   console: "demo-cat-console",
+  laptop: "demo-cat-laptop",
 };
 
 export const SCOPE_LABELS: Record<ProductListScope, string> = {
@@ -38,6 +41,7 @@ export const SCOPE_LABELS: Record<ProductListScope, string> = {
   ipad: "آیپد",
   "xiaomi-pad": "تبلت شیائومی",
   console: "کنسول بازی",
+  laptop: "لپ‌تاپ",
 };
 
 export type SyncProductRow = {
@@ -149,6 +153,17 @@ export function isConsoleProduct(p: {
   );
 }
 
+export function isLaptopProduct(p: {
+  brand?: string | null;
+  model?: string | null;
+  category_id?: string | null;
+  origin?: string | null;
+}): boolean {
+  if (p.category_id === DEMO_CATEGORY_IDS.laptop) return true;
+  if (p.origin?.startsWith("dobitkala:")) return true;
+  return false;
+}
+
 export function scopeForParsedProduct(p: ParsedProduct): ProductListScope {
   if (isNonRegistryOrigin(p.origin)) return "iphone-noreg";
   if (isConsoleProduct(p)) return "console";
@@ -187,6 +202,9 @@ export function scopeForProduct(
   if (p.category_id === DEMO_CATEGORY_IDS.console || isConsoleProduct(p)) {
     return "console";
   }
+  if (p.category_id === DEMO_CATEGORY_IDS.laptop || isLaptopProduct(p)) {
+    return "laptop";
+  }
   return "mobile";
 }
 
@@ -220,6 +238,7 @@ function emptyKeysByScope(): Record<ProductListScope, Set<string>> {
     ipad: new Set(),
     "xiaomi-pad": new Set(),
     console: new Set(),
+    laptop: new Set(),
   };
 }
 

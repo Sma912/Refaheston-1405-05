@@ -31,6 +31,7 @@ const PRODUCT_MENU = [
   { href: "/?cat=ipad", label: "آیپد", cat: "ipad" },
   { href: "/?cat=xiaomi-pad", label: "تبلت شیائومی", cat: "xiaomi-pad" },
   { href: "/?cat=console", label: "کنسول بازی", cat: "console" },
+  { href: "/?cat=laptop", label: "لپ‌تاپ", cat: "laptop" },
 ];
 
 export function SiteHeader() {
