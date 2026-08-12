@@ -365,7 +365,9 @@ function findExtraCatalogImage(model: string): { image: string; label: string } 
   let bestHits = 0;
   for (const entry of extraCatalog as Extra[]) {
     const hits = entry.match.filter((t) => hay.includes(t.toLowerCase())).length;
-    if (hits === entry.match.length && hits > bestHits) {
+    if (hits !== entry.match.length) continue;
+    // ترجیح تطبیق دقیق‌تر (تعداد توکن بیشتر)
+    if (hits > bestHits || (hits === bestHits && entry.match.length > (best?.match.length ?? 0))) {
       bestHits = hits;
       best = entry;
     }
