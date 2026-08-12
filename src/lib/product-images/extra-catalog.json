@@ -1,47 +1,47 @@
 [
   {
     "match": ["dual sence"],
-    "image": "/product-images/extras/dualsense.jpg",
+    "image": "/catalog/dualsense.jpg",
     "label": "DualSense"
   },
   {
     "match": ["dual sense"],
-    "image": "/product-images/extras/dualsense.jpg",
+    "image": "/catalog/dualsense.jpg",
     "label": "DualSense"
   },
   {
     "match": ["ps5 slim", "drive"],
-    "image": "/product-images/extras/ps5-official.jpg",
+    "image": "/catalog/ps5-official.jpg",
     "label": "PS5 Slim Drive"
   },
   {
     "match": ["ps5 slim", "digital"],
-    "image": "/product-images/extras/ps5-official.jpg",
+    "image": "/catalog/ps5-official.jpg",
     "label": "PS5 Slim Digital"
   },
   {
     "match": ["ps5"],
-    "image": "/product-images/extras/ps5-official.jpg",
+    "image": "/catalog/ps5-official.jpg",
     "label": "PS5"
   },
   {
     "match": ["xiaomi pad"],
-    "image": "/product-images/extras/xiaomi-pad-5-1.jpg",
+    "image": "/catalog/xiaomi-pad-5-1.jpg",
     "label": "Xiaomi Pad"
   },
   {
     "match": ["redmi pad 2 pro"],
-    "image": "/product-images/extras/xiaomi-redmi-pad-pro-1.jpg",
+    "image": "/catalog/xiaomi-redmi-pad-pro-1.jpg",
     "label": "Redmi Pad 2 Pro"
   },
   {
     "match": ["redmi pad pro"],
-    "image": "/product-images/extras/xiaomi-redmi-pad-pro-1.jpg",
+    "image": "/catalog/xiaomi-redmi-pad-pro-1.jpg",
     "label": "Redmi Pad Pro"
   },
   {
     "match": ["redmi pad"],
-    "image": "/product-images/extras/xiaomi-redmi-pad-pro-1.jpg",
+    "image": "/catalog/xiaomi-redmi-pad-pro-1.jpg",
     "label": "Redmi Pad"
   },
   {
