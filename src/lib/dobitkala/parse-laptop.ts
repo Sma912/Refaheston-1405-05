@@ -1,6 +1,6 @@
 import type { DobitLaptopRow } from "@/lib/dobitkala/client";
 
-const NOISE_WORDS = new Set(
+  const NOISE_WORDS = new Set(
   [
     "laptop",
     "ultrabook",
@@ -11,6 +11,17 @@ const NOISE_WORDS = new Set(
     "اینچی",
     "گیمینگ",
     "مدل",
+    "ram",
+    "midnight",
+    "starlight",
+    "silver",
+    "space",
+    "gray",
+    "grey",
+    "black",
+    "white",
+    "blue",
+    "gold",
   ].map((s) => s.toLowerCase())
 );
 
