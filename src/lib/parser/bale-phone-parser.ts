@@ -52,6 +52,7 @@ export function normalizeNonRegistryOrigin(origin: string): string {
 function normalizeBrand(brand: string): string {
   const cleaned = brand.trim().replace(/\s+/g, " ");
   const map: Record<string, string> = {
+    sony: "Sony",
     samsung: "Samsung",
     xiaomi: "Xiaomi",
     apple: "Apple",
@@ -80,10 +81,20 @@ function resolveBrand(modelText: string, sectionBrand: string | null): string {
   }
   if (
     lower.includes("iphone") ||
+    lower.includes("ipad") ||
     lower.startsWith("apple") ||
     /^\d+\s*(pro(\s*max)?|-?\s*normal)\b/i.test(modelText.trim())
   ) {
     return "Apple";
+  }
+  if (
+    lower.includes("ps5") ||
+    lower.includes("ps4") ||
+    lower.includes("playstation") ||
+    /dual\s*sen[sc]e/.test(lower) ||
+    lower.includes("sony")
+  ) {
+    return "Sony";
   }
   if (lower.includes("honor")) return "Honor";
   if (lower.includes("huawei")) return "Huawei";
@@ -437,7 +448,7 @@ export function parseBalePhoneText(rawText: string): ParseResult {
     }
 
     const brand = resolveBrand(model, currentBrand);
-    if (brand === "Apple") {
+    if (brand === "Apple" && !/\bipad\b/i.test(model)) {
       model = normalizeIphoneModel(model);
     }
     brands.add(brand);

@@ -21,11 +21,15 @@ async function resolveCategoryIds(
   const map: Record<ProductListScope, string | null> = {
     mobile: null,
     "iphone-noreg": null,
+    tablet: null,
+    console: null,
   };
 
   for (const row of data ?? []) {
     if (row.slug === "mobile") map.mobile = row.id;
     if (row.slug === "iphone-noreg") map["iphone-noreg"] = row.id;
+    if (row.slug === "tablet") map.tablet = row.id;
+    if (row.slug === "console") map.console = row.id;
   }
 
   if (!map["iphone-noreg"]) {
@@ -38,6 +42,27 @@ async function resolveCategoryIds(
       .select("id")
       .maybeSingle();
     map["iphone-noreg"] = created?.id ?? null;
+  }
+
+  if (!map.tablet) {
+    const { data: created } = await admin
+      .from("categories")
+      .upsert({ name: "تبلت", slug: "tablet" }, { onConflict: "slug" })
+      .select("id")
+      .maybeSingle();
+    map.tablet = created?.id ?? null;
+  }
+
+  if (!map.console) {
+    const { data: created } = await admin
+      .from("categories")
+      .upsert(
+        { name: "کنسول بازی", slug: "console" },
+        { onConflict: "slug" }
+      )
+      .select("id")
+      .maybeSingle();
+    map.console = created?.id ?? null;
   }
 
   return map;

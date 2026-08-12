@@ -10,6 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { isNonRegistryOrigin } from "@/lib/parser/bale-phone-parser";
 import { DEMO_CAT_IPHONE_NOREG } from "@/lib/demo/data";
+import {
+  isConsoleProduct,
+  isTabletProduct,
+} from "@/lib/products/sync";
 
 /** تشخیص تب «آیفون بدون رجیستری» در کاتالوگ فروشگاه */
 export function isNoregCatalogProduct(product: {
@@ -26,8 +30,12 @@ export function isNoregCatalogProduct(product: {
 
 function inCategory(product: Product, category: string): boolean {
   const noreg = isNoregCatalogProduct(product);
+  const tablet = isTabletProduct(product);
+  const console_ = isConsoleProduct(product);
   if (category === "iphone-noreg") return noreg;
-  if (category === "mobile") return !noreg;
+  if (category === "tablet") return tablet && !noreg;
+  if (category === "console") return console_;
+  if (category === "mobile") return !noreg && !tablet && !console_;
   return false;
 }
 
@@ -79,7 +87,13 @@ export function ProductCatalog({ products }: { products: Product[] }) {
   );
 
   const filtered = useMemo(() => {
-    if (category !== "mobile" && category !== "iphone-noreg") return [];
+    if (
+      category !== "mobile" &&
+      category !== "iphone-noreg" &&
+      category !== "tablet" &&
+      category !== "console"
+    )
+      return [];
     return categoryProducts.filter((p) => {
       const hay =
         `${p.brand} ${p.model} ${p.color} ${p.origin ?? ""}`.toLowerCase();
@@ -209,7 +223,10 @@ export function ProductCatalog({ products }: { products: Product[] }) {
         <span>{filtered.length.toLocaleString("fa-IR")} محصول</span>
       </div>
 
-      {category !== "mobile" && category !== "iphone-noreg" ? (
+      {category !== "mobile" &&
+      category !== "iphone-noreg" &&
+      category !== "tablet" &&
+      category !== "console" ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-500">
           این دسته به‌زودی فعال می‌شود.
         </div>

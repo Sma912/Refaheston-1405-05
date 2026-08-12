@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { parseBalePhoneText, isNonRegistryOrigin } from "@/lib/parser/bale-phone-parser";
+import { parseBalePhoneText } from "@/lib/parser/bale-phone-parser";
 import { formatPriceToman } from "@/lib/utils/price";
 import { isDemoMode } from "@/lib/demo/config";
 import { DEMO_SAMPLE_IMPORT_TEXT } from "@/lib/demo/data";
 import { useDemoStore } from "@/lib/demo/store";
 import type { ProductListScope, ProductSyncStats } from "@/lib/products/sync";
+import { scopeForParsedProduct } from "@/lib/products/sync";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -23,6 +24,8 @@ import { BaleChannelWebhookPanel } from "@/components/admin/bale-channel-webhook
 const SCOPE_LABEL: Record<ProductListScope, string> = {
   mobile: "موبایل",
   "iphone-noreg": "آیفون بدون رجیستری",
+  tablet: "تبلت",
+  console: "کنسول بازی",
 };
 
 export default function ImportProductsPage() {
@@ -45,14 +48,16 @@ export default function ImportProductsPage() {
     if (forceScope !== "auto") return [forceScope];
     const set = new Set<ProductListScope>();
     for (const p of parsed.products) {
-      set.add(isNonRegistryOrigin(p.origin) ? "iphone-noreg" : "mobile");
+      set.add(scopeForParsedProduct(p));
     }
     return [...set];
   }, [parsed, forceScope]);
 
-  function previewScopeForProduct(origin: string | null | undefined): ProductListScope {
+  function previewScopeForProduct(
+    p: Parameters<typeof scopeForParsedProduct>[0]
+  ): ProductListScope {
     if (forceScope !== "auto") return forceScope;
-    return isNonRegistryOrigin(origin) ? "iphone-noreg" : "mobile";
+    return scopeForParsedProduct(p);
   }
 
   async function confirmImport() {
@@ -131,6 +136,8 @@ export default function ImportProductsPage() {
           <option value="auto">خودکار از روی متن</option>
           <option value="mobile">فقط موبایل</option>
           <option value="iphone-noreg">فقط آیفون بدون رجیستری</option>
+          <option value="tablet">فقط تبلت</option>
+          <option value="console">فقط کنسول بازی</option>
         </select>
       </div>
 
@@ -187,7 +194,7 @@ export default function ImportProductsPage() {
                 {parsed.products.map((p, idx) => (
                   <TableRow key={`${p.brand}-${p.model}-${p.color}-${idx}`}>
                     <TableCell>
-                      {SCOPE_LABEL[previewScopeForProduct(p.origin)]}
+                      {SCOPE_LABEL[previewScopeForProduct(p)]}
                     </TableCell>
                     <TableCell>{p.brand}</TableCell>
                     <TableCell>{p.model}</TableCell>

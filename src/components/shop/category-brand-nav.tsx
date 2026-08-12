@@ -17,8 +17,9 @@ export const SHOP_CATEGORIES: ShopCategory[] = [
     label: "آیفون بدون رجیستری",
     enabled: true,
   },
+  { id: "tablet", label: "تبلت", enabled: true },
+  { id: "console", label: "کنسول بازی", enabled: true },
   { id: "laptop", label: "لپ‌تاپ", enabled: false },
-  { id: "console", label: "کنسول بازی", enabled: false },
   { id: "accessory", label: "لوازم جانبی", enabled: false },
 ];
 
@@ -82,7 +83,9 @@ export function CategoryBrandNav({
 
       {/* Brand accordion — for mobile & non-registry iPhone lists */}
       {(selectedCategory === "mobile" ||
-        selectedCategory === "iphone-noreg") && (
+        selectedCategory === "iphone-noreg" ||
+        selectedCategory === "tablet" ||
+        selectedCategory === "console") && (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <button
             type="button"

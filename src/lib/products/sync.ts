@@ -5,16 +5,20 @@ import {
 } from "@/lib/parser/bale-phone-parser";
 import type { ParsedProduct, Product } from "@/types/database";
 
-export type ProductListScope = "mobile" | "iphone-noreg";
+export type ProductListScope = "mobile" | "iphone-noreg" | "tablet" | "console";
 
 export const CATEGORY_SLUGS: Record<ProductListScope, string> = {
   mobile: "mobile",
   "iphone-noreg": "iphone-noreg",
+  tablet: "tablet",
+  console: "console",
 };
 
 export const DEMO_CATEGORY_IDS: Record<ProductListScope, string> = {
   mobile: "demo-cat-mobile",
   "iphone-noreg": "demo-cat-iphone-noreg",
+  tablet: "demo-cat-tablet",
+  console: "demo-cat-console",
 };
 
 export type SyncProductRow = {
@@ -71,8 +75,38 @@ export function productVariantKey(p: {
     .toLowerCase();
 }
 
+export function isTabletProduct(p: {
+  brand?: string | null;
+  model?: string | null;
+  category_id?: string | null;
+}): boolean {
+  if (p.category_id === DEMO_CATEGORY_IDS.tablet) return true;
+  const m = `${p.brand ?? ""} ${p.model ?? ""}`.toLowerCase();
+  return /\bipad\b/.test(m) || /xiaomi\s*pad/.test(m) || /redmi\s*pad/.test(m);
+}
+
+export function isConsoleProduct(p: {
+  brand?: string | null;
+  model?: string | null;
+  category_id?: string | null;
+}): boolean {
+  if (p.category_id === DEMO_CATEGORY_IDS.console) return true;
+  const m = `${p.brand ?? ""} ${p.model ?? ""}`.toLowerCase();
+  return (
+    /\bps5\b/.test(m) ||
+    /\bps4\b/.test(m) ||
+    /playstation/.test(m) ||
+    /dual\s*sen[sc]e/.test(m) ||
+    /\bxbox\b/.test(m) ||
+    /nintendo|switch/.test(m)
+  );
+}
+
 export function scopeForParsedProduct(p: ParsedProduct): ProductListScope {
-  return isNonRegistryOrigin(p.origin) ? "iphone-noreg" : "mobile";
+  if (isNonRegistryOrigin(p.origin)) return "iphone-noreg";
+  if (isConsoleProduct(p)) return "console";
+  if (isTabletProduct(p)) return "tablet";
+  return "mobile";
 }
 
 export function scopeForProduct(
@@ -89,6 +123,12 @@ export function scopeForProduct(
     p.description?.includes("بدون رجیستری")
   ) {
     return "iphone-noreg";
+  }
+  if (p.category_id === DEMO_CATEGORY_IDS.tablet || isTabletProduct(p)) {
+    return "tablet";
+  }
+  if (p.category_id === DEMO_CATEGORY_IDS.console || isConsoleProduct(p)) {
+    return "console";
   }
   return "mobile";
 }
@@ -128,6 +168,8 @@ export function buildProductSyncPlan(
   const keysByScope: Record<ProductListScope, Set<string>> = {
     mobile: new Set(),
     "iphone-noreg": new Set(),
+    tablet: new Set(),
+    console: new Set(),
   };
 
   for (const p of parsed.products) {
@@ -139,6 +181,16 @@ export function buildProductSyncPlan(
       // forceScope یا دسته بدون‌کد: مبدأ را برای کاتالوگ/قیمت مشخص نگه دار
       origin = origin?.trim() ? origin : "Not ZAA";
     }
+    let price = p.price;
+    // لیست‌های بازار توسعه برای تبلت/کنسول معمولاً به هزار تومان‌اند
+    // (آیفون noreg همان ضرب را در parseBalePhoneText دارد)
+    if (
+      (scope === "tablet" || scope === "console") &&
+      price > 0 &&
+      price < 10_000_000
+    ) {
+      price *= 1000;
+    }
     const key = productVariantKey({ ...p, origin });
     rows.push({
       brand: p.brand,
@@ -146,7 +198,7 @@ export function buildProductSyncPlan(
       storage: p.storage,
       ram: p.ram,
       color: p.color,
-      price: p.price,
+      price,
       origin,
       description:
         scope === "iphone-noreg" ? "آیفون بدون کد ریجستری" : null,
