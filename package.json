@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:parser": "npx tsx src/lib/parser/bale-phone-parser.test.ts",
-    "sync:laptops": "npx tsx scripts/sync-dobit-laptops.ts"
+    "sync:laptops": "npx tsx scripts/sync-dobit-laptops.ts",
+    "sync:media": "npx tsx scripts/mirror-product-images-to-vps.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",

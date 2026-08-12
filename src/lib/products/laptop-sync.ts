@@ -10,6 +10,7 @@ import {
   laptopFinalPrice,
   laptopOrigin,
 } from "@/lib/dobitkala/parse-laptop";
+import { mediaBaseUrl, mirrorRemoteImageToMedia } from "@/lib/media/vps";
 import type { Product } from "@/types/database";
 
 export type LaptopSyncStats = {
@@ -127,20 +128,46 @@ export async function syncDobitkalaLaptops(opts?: {
     return prepareRow(item, prev?.image_url ?? null);
   });
 
-  const needImage = prepared.filter((r) => !r.image_url);
+  // کالاهای بدون عکس، یا هنوز روی هاست مدیا نیستند
+  const mediaBase = mediaBaseUrl();
+  const needImage = prepared.filter(
+    (r) => !r.image_url || !r.image_url.startsWith(mediaBase)
+  );
   const toFetch = needImage.slice(0, maxNewImages);
   let imagesFetched = 0;
   let imagesFailed = 0;
+  const canUpload = Boolean(process.env.MEDIA_UPLOAD_SECRET?.trim());
 
   const fetched = await mapPool(toFetch, imageConcurrency, async (row) => {
     try {
-      const url = await fetchDobitProductImage(row.slug);
-      if (url) {
-        imagesFetched += 1;
-        return { origin: row.origin, url };
+      const dobitId = row.origin.replace(/^dobitkala:/, "");
+      // اگر از قبل لینک دوبیت داریم، همان را میرور کن؛ وگرنه از صفحه محصول بگیر
+      let source = row.image_url && row.image_url.includes("dobitkala.com")
+        ? row.image_url
+        : null;
+      if (!source) source = await fetchDobitProductImage(row.slug);
+      if (!source) {
+        imagesFailed += 1;
+        return { origin: row.origin, url: null as string | null };
       }
-      imagesFailed += 1;
-      return { origin: row.origin, url: null as string | null };
+
+      if (canUpload) {
+        const ext =
+          source.toLowerCase().match(/\.(jpe?g|png|webp|gif)(?:\?|$)/)?.[1] ||
+          "jpg";
+        const normalizedExt = ext === "jpeg" ? "jpg" : ext;
+        const mirrored = await mirrorRemoteImageToMedia(
+          source,
+          `laptops/${dobitId}.${normalizedExt}`
+        );
+        if (mirrored) {
+          imagesFetched += 1;
+          return { origin: row.origin, url: mirrored };
+        }
+      }
+
+      imagesFetched += 1;
+      return { origin: row.origin, url: source };
     } catch (e) {
       imagesFailed += 1;
       errors.push(
