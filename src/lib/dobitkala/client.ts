@@ -150,7 +150,7 @@ function mapRow(row: Record<string, unknown>): DobitLaptopRow | null {
   let displaySize = displayRaw;
   if (displaySize) {
     displaySize = displaySize.replace(/["'“”]/g, "").trim();
-    if (displaySize && !/اینچ|inch/i.test(displaySize)) {
+    if (displaySize && !/اینچ|اینج|inch/i.test(displaySize)) {
       displaySize = `${displaySize}"`;
     }
   }
