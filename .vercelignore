@@ -6,4 +6,6 @@ node_modules
 .DS_Store
 public/product-images/*
 !public/product-images/.gitkeep
+!public/product-images/extras/
+!public/product-images/extras/**
 *.log
