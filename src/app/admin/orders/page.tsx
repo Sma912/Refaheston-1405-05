@@ -332,8 +332,17 @@ function AdminOrdersPage() {
       };
       if (!res.ok) {
         toast.error(payload.error ?? "عملیات ناموفق بود");
+      } else if (payload.warning) {
+        toast.error(payload.warning);
+        if (action === "send_note") {
+          openOrder({ ...selected, notes: notes.trim() || selected.notes });
+          load();
+        } else {
+          setSelected(null);
+          load();
+        }
       } else {
-        toast.success(payload.warning ?? "انجام شد و پیام بله ارسال شد");
+        toast.success("انجام شد و پیام بله ارسال شد");
         if (action === "send_note") {
           openOrder({ ...selected, notes: notes.trim() || selected.notes });
           load();

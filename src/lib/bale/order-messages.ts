@@ -87,7 +87,7 @@ export function buildCustomerInvoiceMessage(
     `هزینه ارسال: ${formatPriceToman(ctx.shippingAmount ?? 0)}`,
     `مبلغ قابل پرداخت: ${formatPriceToman(amountOf(ctx))}`,
     "",
-    "لطفاً مبلغ را به یکی از حساب‌های زیر واریز کنید و رسید را در همین گفتگو ارسال کنید:",
+    "لطفاً مبلغ را به یکی از حساب‌های زیر واریز کنید:",
   ].filter((line) => line !== null) as string[];
 
   if (payment.cardNumber) {
@@ -110,12 +110,17 @@ export function buildCustomerInvoiceMessage(
 
   lines.push(
     "",
-    "⏰ مهلت واریز و ارسال رسید: ۱۰ دقیقه از زمان صدور فاکتور.",
-    "پس از این زمان درگاه بررسی بسته می‌شود و در صورت عدم تأیید پرداخت، سفارش لغو خواهد شد."
+    "📸 بعد از واریز، عکس رسید را همین‌جا در گفتگوی بازوی بله (@refahestonbot) بفرستید.",
+    "ادمین رسید را در بله می‌بیند و پرداخت را تأیید می‌کند.",
+    "",
+    "⏰ مهلت واریز و ارسال رسید: ۱۰ دقیقه از زمان صدور فاکتور (به‌وقت تهران)."
   );
   if (ctx.paymentDeadlineAt) {
     lines.push(`مهلت تا: ${formatJalaliDate(ctx.paymentDeadlineAt, true)}`);
   }
+  lines.push(
+    "پس از پایان مهلت، در صورت عدم تأیید پرداخت، سفارش لغو می‌شود."
+  )
 
   return lines.join("\n");
 }

@@ -10,8 +10,46 @@ const WEEKDAYS_FA = [
   "شنبه",
 ];
 
+const TEHRAN_TZ = "Asia/Tehran";
+
 function toFaDigits(input: string | number): string {
   return String(input).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
+}
+
+/** اجزای تاریخ/ساعت به‌وقت تهران — مستقل از timezone سرور (مثلاً Vercel UTC) */
+function tehranParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: TEHRAN_TZ,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    weekday: "short",
+  }).formatToParts(date);
+
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "";
+
+  // weekday: Sun Mon ... — map via a Date constructed from Tehran Y-M-D
+  const year = Number(get("year"));
+  const month = Number(get("month"));
+  const day = Number(get("day"));
+  // UTC noon on that civil date → stable weekday
+  const weekdayIndex = new Date(Date.UTC(year, month - 1, day, 12, 0, 0)).getUTCDay();
+
+  let hour = Number(get("hour"));
+  if (hour === 24) hour = 0;
+
+  return {
+    year,
+    month,
+    day,
+    hour,
+    minute: Number(get("minute")),
+    weekdayIndex,
+  };
 }
 
 export function formatJalaliDate(
@@ -21,11 +59,8 @@ export function formatJalaliDate(
   const date = typeof iso === "string" ? new Date(iso) : iso;
   if (Number.isNaN(date.getTime())) return "—";
 
-  const { jy, jm, jd } = jalaali.toJalaali(
-    date.getFullYear(),
-    date.getMonth() + 1,
-    date.getDate()
-  );
+  const t = tehranParts(date);
+  const { jy, jm, jd } = jalaali.toJalaali(t.year, t.month, t.day);
 
   const datePart = toFaDigits(
     `${jy}/${String(jm).padStart(2, "0")}/${String(jd).padStart(2, "0")}`
@@ -33,12 +68,11 @@ export function formatJalaliDate(
 
   if (!withTime) return datePart;
 
-  const time = date.toLocaleTimeString("fa-IR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const time = toFaDigits(
+    `${String(t.hour).padStart(2, "0")}:${String(t.minute).padStart(2, "0")}`
+  );
 
-  return `${datePart} ${time}`;
+  return `${datePart} — ساعت ${time}`;
 }
 
 /** مثلاً: یکشنبه ۱۴۰۵/۰۵/۱۸ — ساعت ۱۴:۳۰ */
@@ -46,20 +80,16 @@ export function formatJalaliDateTime(iso: string | Date): string {
   const date = typeof iso === "string" ? new Date(iso) : iso;
   if (Number.isNaN(date.getTime())) return "—";
 
-  const { jy, jm, jd } = jalaali.toJalaali(
-    date.getFullYear(),
-    date.getMonth() + 1,
-    date.getDate()
-  );
+  const t = tehranParts(date);
+  const { jy, jm, jd } = jalaali.toJalaali(t.year, t.month, t.day);
+  const weekday = WEEKDAYS_FA[t.weekdayIndex] ?? "";
 
-  const weekday = WEEKDAYS_FA[date.getDay()];
   const datePart = toFaDigits(
     `${jy}/${String(jm).padStart(2, "0")}/${String(jd).padStart(2, "0")}`
   );
-  const time = date.toLocaleTimeString("fa-IR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const time = toFaDigits(
+    `${String(t.hour).padStart(2, "0")}:${String(t.minute).padStart(2, "0")}`
+  );
 
   return `${weekday} ${datePart} — ساعت ${time}`;
 }
