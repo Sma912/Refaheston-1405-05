@@ -106,7 +106,7 @@ export function SiteFooter({
         </div>
 
         <div className="space-y-2 text-center text-sm md:text-right">
-          <h3 className="font-semibold text-slate-800">ارتباط و پرداخت</h3>
+          <h3 className="font-semibold text-slate-800">ارتباط</h3>
           <dl className="space-y-1.5 text-slate-600">
             {settings.contact_phone ? (
               <div>
@@ -120,26 +120,12 @@ export function SiteFooter({
                 <dd dir="ltr">{settings.order_tracking_phone}</dd>
               </div>
             ) : null}
-            {settings.payment_card_number ? (
-              <div>
-                <dt className="text-xs text-slate-400">کارت</dt>
-                <dd dir="ltr">{settings.payment_card_number}</dd>
-              </div>
-            ) : null}
-            {settings.payment_sheba ? (
-              <div>
-                <dt className="text-xs text-slate-400">شبا</dt>
-                <dd className="break-all font-mono text-xs" dir="ltr">
-                  {settings.payment_sheba}
-                </dd>
-              </div>
-            ) : null}
-            {settings.payment_card_holder ? (
-              <div>
-                <dt className="text-xs text-slate-400">به نام</dt>
-                <dd>{settings.payment_card_holder}</dd>
-              </div>
-            ) : null}
+            <div>
+              <dt className="text-xs text-slate-400">پرداخت</dt>
+              <dd className="text-xs leading-6 text-slate-500">
+                اطلاعات واریز فقط پس از تأیید سفارش، از طریق پیام بله اعلام می‌شود.
+              </dd>
+            </div>
             {settings.store_address ? (
               <div>
                 <dt className="text-xs text-slate-400">آدرس</dt>

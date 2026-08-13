@@ -1,16 +1,19 @@
 /** Upload / public URL helpers for VPS-hosted product media. */
 
 export function mediaBaseUrl(): string {
+  // Prefer same-origin proxy so HTTPS shop never hits mixed-content blocks.
+  if (typeof window !== "undefined") return "/media";
   return (
-    process.env.MEDIA_BASE_URL ||
     process.env.NEXT_PUBLIC_MEDIA_BASE_URL ||
-    "http://62.220.123.167/refahston-media"
+    process.env.MEDIA_BASE_URL ||
+    "/media"
   ).replace(/\/$/, "");
 }
 
 export function mediaPublicUrl(relPath: string): string {
   const rel = relPath.replace(/^\/+/, "");
-  return `${mediaBaseUrl()}/${rel}`;
+  // Always store same-origin path — Next rewrites /media/* to the VPS.
+  return `/media/${rel}`;
 }
 
 export async function uploadMediaFile(

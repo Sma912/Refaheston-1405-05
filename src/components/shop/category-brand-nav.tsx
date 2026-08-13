@@ -41,7 +41,7 @@ export function CategoryBrandNav({
   onCategoryChange,
   onBrandChange,
 }: Props) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   const selectedBrandLabel = useMemo(() => {
     if (!selectedBrand) return "همه برندها";
@@ -107,7 +107,10 @@ export function CategoryBrandNav({
             <div className="flex flex-wrap gap-2 border-t border-slate-100 px-4 py-3">
               <button
                 type="button"
-                onClick={() => onBrandChange("")}
+                onClick={() => {
+                  onBrandChange("");
+                  setOpen(false);
+                }}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs font-medium ring-1",
                   !selectedBrand
@@ -121,7 +124,10 @@ export function CategoryBrandNav({
                 <button
                   key={b}
                   type="button"
-                  onClick={() => onBrandChange(b)}
+                  onClick={() => {
+                    onBrandChange(b);
+                    setOpen(false);
+                  }}
                   className={cn(
                     "rounded-full px-3 py-1.5 text-xs font-medium ring-1",
                     selectedBrand === b

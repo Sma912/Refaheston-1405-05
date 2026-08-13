@@ -48,6 +48,8 @@ export interface Product {
   raw_import_text: string | null;
   created_at: string;
   updated_at: string;
+  /** optional join from categories.slug */
+  category?: { slug: string } | null;
 }
 
 export interface Order {

@@ -124,29 +124,10 @@ export function InvoiceDocument({
           <h2 style={{ margin: "0 0 8px", fontSize: "14px", fontWeight: 700 }}>
             اطلاعات پرداخت
           </h2>
-          {settings.payment_card_number ? (
-            <p style={{ margin: "0 0 4px", direction: "ltr" }}>
-              کارت: {settings.payment_card_number}
-            </p>
-          ) : null}
-          {settings.payment_sheba ? (
-            <p
-              style={{
-                margin: "0 0 4px",
-                direction: "ltr",
-                fontFamily: "monospace",
-                fontSize: "12px",
-                wordBreak: "break-all",
-              }}
-            >
-              شبا: {settings.payment_sheba}
-            </p>
-          ) : null}
-          {settings.payment_card_holder ? (
-            <p style={{ margin: "0 0 4px" }}>
-              به نام: {settings.payment_card_holder}
-            </p>
-          ) : null}
+          <p style={{ margin: 0, color: "#475569", lineHeight: 1.7 }}>
+            شماره شبا / کارت فقط از طریق پیام بله پس از تأیید سفارش اعلام می‌شود.
+            پرداخت فقط به حساب اعلام‌شده در همان پیام معتبر است.
+          </p>
           {order.payment_ref ? (
             <p style={{ margin: "8px 0 0", direction: "ltr" }}>
               پیگیری پرداخت: {order.payment_ref}

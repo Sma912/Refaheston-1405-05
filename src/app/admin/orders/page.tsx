@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isDemoMode } from "@/lib/demo/config";
 import { useDemoStore } from "@/lib/demo/store";
@@ -45,14 +46,30 @@ type AdminOrderRow = Order & {
   customer_name: string | null;
 };
 
-export default function AdminOrdersPage() {
+function initialFilterFromQuery(
+  status: string | null,
+  hasOrderFocus: boolean
+): OrderStatus | "all" {
+  if (status === "all") return "all";
+  if (status && (ALL_ORDER_STATUSES as string[]).includes(status)) {
+    return status as OrderStatus;
+  }
+  // اگر از داشبورد روی یک سفارش خاص آمدیم، همه را نشان بده تا پیدا شود
+  if (hasOrderFocus) return "all";
+  return "pending_confirmation";
+}
+
+function AdminOrdersPage() {
+  const searchParams = useSearchParams();
   const demo = isDemoMode();
   const demoOrders = useDemoStore((s) => s.orders);
   const demoSettings = useDemoStore((s) => s.settings);
   const [settingsShipping, setSettingsShipping] = useState(0);
   const updateOrder = useDemoStore((s) => s.updateOrder);
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
-  const [filter, setFilter] = useState<OrderStatus | "all">("pending_confirmation");
+  const [filter, setFilter] = useState<OrderStatus | "all">(() =>
+    initialFilterFromQuery(searchParams.get("status"), Boolean(searchParams.get("order")))
+  );
   const [selected, setSelected] = useState<AdminOrderRow | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [history, setHistory] = useState<OrderNote[]>([]);
@@ -62,7 +79,11 @@ export default function AdminOrdersPage() {
   const [shippingAmount, setShippingAmount] = useState("");
   const [paymentRef, setPaymentRef] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
+  const [paymentSheba, setPaymentSheba] = useState("");
+  const [paymentCardNumber, setPaymentCardNumber] = useState("");
+  const [paymentCardHolder, setPaymentCardHolder] = useState("");
   const [saving, setSaving] = useState(false);
+  const focusOrderId = searchParams.get("order");
 
   const defaultShipping = demo
     ? demoSettings.shipping_cost ?? 0
@@ -127,6 +148,15 @@ export default function AdminOrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, demo, demoOrders]);
 
+  useEffect(() => {
+    if (!focusOrderId || orders.length === 0) return;
+    const match = orders.find((o) => o.id === focusOrderId);
+    if (match && selected?.id !== match.id) {
+      void openOrder(match);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusOrderId, orders]);
+
   async function openOrder(order: AdminOrderRow) {
     setSelected(order);
     setTemplateKey("");
@@ -143,10 +173,41 @@ export default function AdminOrdersPage() {
     );
     setPaymentRef(order.payment_ref ?? "");
     setTrackingNumber(order.tracking_number ?? "");
+    setPaymentSheba("");
+    setPaymentCardNumber("");
+    setPaymentCardHolder("");
     setItems([]);
     setHistory([]);
 
-    if (demo) return;
+    if (demo) {
+      setPaymentSheba(demoSettings.payment_sheba ?? "");
+      setPaymentCardNumber(demoSettings.payment_card_number ?? "");
+      setPaymentCardHolder(demoSettings.payment_card_holder ?? "");
+      return;
+    }
+
+    try {
+      const settingsRes = await fetch("/api/admin/settings");
+      const settingsPayload = (await settingsRes.json()) as {
+        settings?: {
+          payment_sheba?: string;
+          payment_card_number?: string;
+          payment_card_holder?: string;
+          shipping_cost?: number;
+        };
+      };
+      const s = settingsPayload.settings;
+      if (s) {
+        setPaymentSheba(s.payment_sheba ?? "");
+        setPaymentCardNumber(s.payment_card_number ?? "");
+        setPaymentCardHolder(s.payment_card_holder ?? "");
+        if (order.shipping_amount == null && s.shipping_cost != null) {
+          setShippingAmount(String(s.shipping_cost));
+        }
+      }
+    } catch {
+      // keep empty; admin can type manually
+    }
 
     const supabase = createClient();
     const [{ data: itemRows }, { data: noteRows }] = await Promise.all([
@@ -198,6 +259,11 @@ export default function AdminOrdersPage() {
       }
       const patch: Partial<Order> = { notes: notes.trim() || null };
       if (action === "approve_invoice") {
+        if (!paymentSheba.trim() && !paymentCardNumber.trim()) {
+          toast.error("حداقل شبا یا شماره کارت را برای پیام بله وارد کنید");
+          setSaving(false);
+          return;
+        }
         patch.status = "awaiting_payment";
         patch.confirmed_amount = amount ?? selected.total_amount;
         patch.shipping_amount =
@@ -254,6 +320,9 @@ export default function AdminOrdersPage() {
           shippingAmount: shipValue,
           paymentRef: paymentRef.trim() || null,
           trackingNumber: trackingNumber.trim() || null,
+          paymentSheba: paymentSheba.trim() || null,
+          paymentCardNumber: paymentCardNumber.trim() || null,
+          paymentCardHolder: paymentCardHolder.trim() || null,
         }),
       });
       const payload = (await res.json()) as {
@@ -435,6 +504,51 @@ export default function AdminOrdersPage() {
                 {formatPriceToman(previewPayable)}
               </span>
             </div>
+
+            {(status === "pending_confirmation" ||
+              status === "awaiting_payment") && (
+              <div className="md:col-span-2 space-y-3 rounded-2xl border border-blue-200 bg-blue-50/50 p-4">
+                <div>
+                  <h3 className="font-semibold text-slate-800">
+                    حساب واریز برای پیام بله
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    این اطلاعات روی سایت نمایش داده نمی‌شود. فقط در پیام بله همین
+                    سفارش می‌رود. می‌توانید مقادیر پیش‌فرض را تغییر دهید.
+                  </p>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm">شماره شبا</label>
+                    <Input
+                      dir="ltr"
+                      value={paymentSheba}
+                      onChange={(e) => setPaymentSheba(e.target.value)}
+                      placeholder="IR…"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm">شماره کارت</label>
+                    <Input
+                      dir="ltr"
+                      value={paymentCardNumber}
+                      onChange={(e) => setPaymentCardNumber(e.target.value)}
+                      placeholder="۶۰۳۷…"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="mb-1 block text-sm">
+                      نام صاحب حساب / کارت
+                    </label>
+                    <Input
+                      value={paymentCardHolder}
+                      onChange={(e) => setPaymentCardHolder(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="mb-1 block text-sm">شماره پیگیری پرداخت</label>
               <Input
@@ -565,5 +679,19 @@ export default function AdminOrdersPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminOrdersPageWithSuspense() {
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center text-slate-500">
+          در حال بارگذاری سفارش‌ها…
+        </div>
+      }
+    >
+      <AdminOrdersPage />
+    </Suspense>
   );
 }

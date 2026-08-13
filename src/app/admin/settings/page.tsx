@@ -150,7 +150,11 @@ export default function AdminSettingsPage() {
       </section>
 
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="font-semibold">پرداخت (فاکتور بله و نمایش سایت)</h2>
+        <h2 className="font-semibold">پرداخت پیش‌فرض (فقط پیام بله)</h2>
+        <p className="text-sm text-slate-500">
+          این مقادیر روی سایت نمایش داده نمی‌شوند. هنگام تأیید فاکتور در پنل سفارش،
+          می‌توانید برای همان سفارش حساب/کارت دیگری وارد کنید.
+        </p>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="شماره شبا">
             <Input

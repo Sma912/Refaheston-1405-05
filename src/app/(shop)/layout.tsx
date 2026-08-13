@@ -1,13 +1,13 @@
 import { SiteHeaderWithSuspense } from "@/components/layout/site-header-shell";
 import { SiteFooter } from "@/components/layout/site-footer";
-import { getStoreSettings } from "@/lib/store/settings";
+import { getPublicStoreSettings } from "@/lib/store/settings";
 
 export default async function ShopLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const settings = await getStoreSettings();
+  const settings = await getPublicStoreSettings();
 
   return (
     <div className="flex min-h-screen flex-col">

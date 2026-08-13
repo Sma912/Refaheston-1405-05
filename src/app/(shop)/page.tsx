@@ -1,6 +1,7 @@
 import { isDemoMode } from "@/lib/demo/config";
 import { DEMO_PRODUCTS } from "@/lib/demo/data";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllActiveProducts } from "@/lib/products/fetch-active";
 import { HomeCatalogWithImages } from "@/components/product/home-catalog-with-images";
 import { ResalatLoanPromoBanner } from "@/components/home/resalat-loan-promo-banner";
 import type { Product } from "@/types/database";
@@ -14,14 +15,7 @@ export default async function HomePage() {
   } else {
     try {
       const supabase = await createClient();
-      const { data } = await supabase
-        .from("products")
-        .select("*")
-        .eq("is_active", true)
-        .order("brand")
-        .order("model")
-        .order("price");
-      products = (data as Product[]) ?? [];
+      products = await fetchAllActiveProducts(supabase);
     } catch {
       products = [];
     }

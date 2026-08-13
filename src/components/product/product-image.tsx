@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Smartphone } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toPublicMediaUrl } from "@/lib/media/public-url";
 
 type Props = {
   productId?: string;
@@ -13,6 +14,10 @@ type Props = {
   className?: string;
   imageClassName?: string;
   fallbackUrl?: string | null;
+  /** Above-the-fold cards: load immediately */
+  priority?: boolean;
+  /** Skip /api/product-image (e.g. laptops — phone catalog matches are wrong). */
+  skipRemoteResolve?: boolean;
 };
 
 /** Deduplicate concurrent resolves for the same brand|model. */
@@ -36,8 +41,8 @@ function resolveImageUrl(brand: string, model: string, color?: string | null) {
 }
 
 /**
- * Resolves product image through the API once, then points <img> at the
- * local static file (avoids broken lazy-load + redirect).
+ * Prefer DB image_url (same-origin /media) — no extra round-trip.
+ * Only call /api/product-image when no stored URL exists.
  */
 export function ProductImage({
   brand,
@@ -47,34 +52,45 @@ export function ProductImage({
   className,
   imageClassName,
   fallbackUrl,
+  priority = false,
+  skipRemoteResolve = false,
 }: Props) {
+  const initial = toPublicMediaUrl(fallbackUrl) ?? null;
   const [src, setSrc] = useState<string | null>(
-    fallbackUrl && !fallbackUrl.endsWith(".svg") ? fallbackUrl : null
+    initial && !initial.endsWith(".svg") ? initial : null
   );
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (fallbackUrl && !fallbackUrl.endsWith(".svg")) {
-      setSrc(fallbackUrl);
+    const next = toPublicMediaUrl(fallbackUrl);
+    if (next && !next.endsWith(".svg")) {
+      setSrc(next);
       setFailed(false);
+      return;
+    }
+
+    if (skipRemoteResolve) {
+      setSrc(null);
+      setFailed(true);
       return;
     }
 
     let cancelled = false;
     resolveImageUrl(brand, model, color).then((url) => {
       if (cancelled) return;
-      if (!url) {
+      const normalized = toPublicMediaUrl(url);
+      if (!normalized || normalized.endsWith(".svg")) {
         setFailed(true);
         return;
       }
-      setSrc(url);
+      setSrc(normalized);
       setFailed(false);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [brand, model, color, fallbackUrl]);
+  }, [brand, model, color, fallbackUrl, skipRemoteResolve]);
 
   return (
     <div
@@ -88,7 +104,8 @@ export function ProductImage({
         <img
           src={src}
           alt={alt}
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
           decoding="async"
           className={cn(
             "h-full w-full object-contain p-3 transition duration-300",

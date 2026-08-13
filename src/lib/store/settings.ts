@@ -1,10 +1,10 @@
+import { unstable_cache } from "next/cache";
 import {
   DEFAULT_STORE_SETTINGS,
   DEMO_STORE_SETTINGS,
   type StoreSettings,
 } from "@/lib/store/defaults";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/demo/config";
 
 function coalesce(value: unknown, fallback = ""): string {
@@ -89,29 +89,52 @@ export function applyEnvFallbacks(settings: StoreSettings): StoreSettings {
   };
 }
 
+/** نسخه عمومی — شبا/کارت هرگز به فرانت فروشگاه نرود */
+export function toPublicStoreSettings(settings: StoreSettings): StoreSettings {
+  return {
+    ...settings,
+    payment_sheba: "",
+    payment_card_number: "",
+    payment_card_holder: "",
+  };
+}
+
+/** Avoid cookies() on every shop navigation — settings change rarely. */
+const getStoreSettingsCached = unstable_cache(
+  async (): Promise<StoreSettings> => {
+    try {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from("store_settings")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("store_settings read", error);
+        return applyEnvFallbacks({ ...DEFAULT_STORE_SETTINGS });
+      }
+
+      return applyEnvFallbacks(fromRow(data as Record<string, unknown> | null));
+    } catch (err) {
+      console.error("store_settings", err);
+      return applyEnvFallbacks({ ...DEFAULT_STORE_SETTINGS });
+    }
+  },
+  ["store-settings-v1"],
+  { revalidate: 120, tags: ["store-settings"] }
+);
+
 export async function getStoreSettings(): Promise<StoreSettings> {
   if (isDemoMode()) {
     return applyEnvFallbacks({ ...DEMO_STORE_SETTINGS });
   }
+  return getStoreSettingsCached();
+}
 
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("store_settings")
-      .select("*")
-      .eq("id", 1)
-      .maybeSingle();
-
-    if (error) {
-      console.error("store_settings read", error);
-      return applyEnvFallbacks({ ...DEFAULT_STORE_SETTINGS });
-    }
-
-    return applyEnvFallbacks(fromRow(data as Record<string, unknown> | null));
-  } catch (err) {
-    console.error("store_settings", err);
-    return applyEnvFallbacks({ ...DEFAULT_STORE_SETTINGS });
-  }
+/** تنظیمات قابل نمایش در فروشگاه (بدون اطلاعات بانکی) */
+export async function getPublicStoreSettings(): Promise<StoreSettings> {
+  return toPublicStoreSettings(await getStoreSettings());
 }
 
 /** برای ارسال فاکتور / اعلان — با service role تا همیشه در دسترس باشد */

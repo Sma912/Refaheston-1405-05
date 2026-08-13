@@ -1,11 +1,17 @@
-import { createClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/demo/config";
 import { DEMO_PRODUCTS } from "@/lib/demo/data";
 import { ProductDetailClient } from "@/components/product/product-detail-client";
+import {
+  getActiveProductById,
+  getProductVariants,
+} from "@/lib/products/fetch-product";
 import type { Product } from "@/types/database";
 import type { Metadata } from "next";
 
 type Props = { params: Promise<{ id: string }> };
+
+/** Soft-cache public product pages (prices/stock update via revalidation window). */
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -14,14 +20,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (!p) return { title: "محصول" };
     return { title: `${p.brand} ${p.model} ${p.color}` };
   }
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("products")
-    .select("brand, model, color")
-    .eq("id", id)
-    .maybeSingle();
-  if (!data) return { title: "محصول" };
-  return { title: `${data.brand} ${data.model} ${data.color}` };
+  const product = await getActiveProductById(id);
+  if (!product) return { title: "محصول" };
+  return {
+    title: `${product.brand} ${product.model} ${product.color}`,
+  };
 }
 
 export default async function ProductPage({ params }: Props) {
@@ -43,25 +46,9 @@ export default async function ProductPage({ params }: Props) {
       );
     }
   } else {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("products")
-      .select("*")
-      .eq("id", id)
-      .eq("is_active", true)
-      .maybeSingle();
-    product = (data as Product) ?? null;
+    product = await getActiveProductById(id);
     if (product) {
-      const { data: v } = await supabase
-        .from("products")
-        .select("*")
-        .eq("is_active", true)
-        .eq("brand", product.brand)
-        .eq("model", product.model)
-        .eq("storage", product.storage)
-        .eq("ram", product.ram)
-        .eq("origin", product.origin);
-      variants = (v as Product[]) ?? [product];
+      variants = await getProductVariants(product);
     }
   }
 

@@ -28,6 +28,19 @@ const ENABLED_CATS = new Set([
   "tablet",
 ]);
 
+type SortKey = "default" | "price-asc" | "price-desc" | "popular";
+
+const SORT_OPTIONS: { id: SortKey; label: string }[] = [
+  { id: "default", label: "پیش‌فرض" },
+  { id: "popular", label: "پرطرفدارترین" },
+  { id: "price-asc", label: "ارزان‌ترین" },
+  { id: "price-desc", label: "گران‌ترین" },
+];
+
+function modelKey(p: Product) {
+  return `${p.brand}|${p.model}`.toLowerCase();
+}
+
 /** تشخیص تب «آیفون بدون رجیستری» در کاتالوگ فروشگاه */
 export function isNoregCatalogProduct(product: {
   origin?: string | null;
@@ -42,19 +55,24 @@ export function isNoregCatalogProduct(product: {
 }
 
 function inCategory(product: Product, category: string): boolean {
+  const slug = product.category?.slug ?? null;
   const noreg = isNoregCatalogProduct(product);
-  const ipad = isIpadProduct(product);
-  const xiaomiPad = isXiaomiPadProduct(product);
-  const console_ = isConsoleProduct(product);
-  const laptop = isLaptopProduct(product);
-  if (category === "iphone-noreg") return noreg;
+  const ipad =
+    slug === "ipad" || (isIpadProduct(product) && slug !== "xiaomi-pad");
+  const xiaomiPad = slug === "xiaomi-pad" || isXiaomiPadProduct(product);
+  const console_ = slug === "console" || isConsoleProduct(product);
+  const laptop = slug === "laptop" || isLaptopProduct(product);
+  if (category === "iphone-noreg") return noreg || slug === "iphone-noreg";
   if (category === "ipad") return ipad && !noreg;
   if (category === "xiaomi-pad") return xiaomiPad && !noreg;
   if (category === "tablet") return (ipad || xiaomiPad) && !noreg;
   if (category === "console") return console_;
   if (category === "laptop") return laptop;
   if (category === "mobile")
-    return !noreg && !ipad && !xiaomiPad && !console_ && !laptop;
+    return (
+      slug === "mobile" ||
+      (!slug && !noreg && !ipad && !xiaomiPad && !console_ && !laptop)
+    );
   return false;
 }
 
@@ -73,6 +91,9 @@ export function ProductCatalog({ products }: { products: Product[] }) {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [sort, setSort] = useState<SortKey>("default");
+  const [visibleCount, setVisibleCount] = useState(24);
+  const PAGE_SIZE = 24;
 
   useEffect(() => {
     const next = searchParams.get("cat") || "mobile";
@@ -86,6 +107,7 @@ export function ProductCatalog({ products }: { products: Product[] }) {
   function selectCategory(id: string) {
     setCategory(id);
     setBrand("");
+    setVisibleCount(PAGE_SIZE);
     resetFilters();
     const params = new URLSearchParams(searchParams.toString());
     if (!id || id === "mobile") params.delete("cat");
@@ -133,7 +155,7 @@ export function ProductCatalog({ products }: { products: Product[] }) {
 
   const filtered = useMemo(() => {
     if (!ENABLED_CATS.has(category)) return [];
-    return categoryProducts.filter((p) => {
+    const list = categoryProducts.filter((p) => {
       const hay =
         `${p.brand} ${p.model} ${p.color} ${p.origin ?? ""}`.toLowerCase();
       if (q && !hay.includes(q.trim().toLowerCase())) return false;
@@ -144,6 +166,27 @@ export function ProductCatalog({ products }: { products: Product[] }) {
       if (maxPrice && p.price > Number(maxPrice)) return false;
       return true;
     });
+
+    if (sort === "price-asc") {
+      return [...list].sort((a, b) => a.price - b.price);
+    }
+    if (sort === "price-desc") {
+      return [...list].sort((a, b) => b.price - a.price);
+    }
+    if (sort === "popular") {
+      const demand = new Map<string, number>();
+      for (const p of categoryProducts) {
+        const k = modelKey(p);
+        demand.set(k, (demand.get(k) ?? 0) + 1);
+      }
+      return [...list].sort((a, b) => {
+        const da = demand.get(modelKey(a)) ?? 0;
+        const db = demand.get(modelKey(b)) ?? 0;
+        if (db !== da) return db - da;
+        return a.price - b.price;
+      });
+    }
+    return list;
   }, [
     categoryProducts,
     category,
@@ -153,7 +196,12 @@ export function ProductCatalog({ products }: { products: Product[] }) {
     ram,
     minPrice,
     maxPrice,
+    sort,
   ]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [category, q, brand, storage, ram, minPrice, maxPrice, sort]);
 
   function resetFilters() {
     setQ("");
@@ -161,7 +209,11 @@ export function ProductCatalog({ products }: { products: Product[] }) {
     setRam("");
     setMinPrice("");
     setMaxPrice("");
+    setSort("default");
+    setVisibleCount(PAGE_SIZE);
   }
+
+  const visible = filtered.slice(0, visibleCount);
 
   return (
     <div className="space-y-6">
@@ -184,6 +236,18 @@ export function ProductCatalog({ products }: { products: Product[] }) {
             className="pr-10"
           />
         </div>
+        <select
+          className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 sm:w-44"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortKey)}
+          aria-label="مرتب‌سازی"
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.id} value={opt.id}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
         <Button
           type="button"
           variant="outline"
@@ -266,11 +330,33 @@ export function ProductCatalog({ products }: { products: Product[] }) {
           محصولی با این فیلترها پیدا نشد.
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
-          {filtered.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
+            {visible.map((product, index) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                priority={index < 8}
+              />
+            ))}
+          </div>
+          {visibleCount < filtered.length ? (
+            <div className="flex justify-center pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setVisibleCount((n) =>
+                    Math.min(n + PAGE_SIZE, filtered.length)
+                  )
+                }
+              >
+                نمایش بیشتر (
+                {(filtered.length - visibleCount).toLocaleString("fa-IR")} باقی‌مانده)
+              </Button>
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );

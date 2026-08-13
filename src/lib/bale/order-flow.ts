@@ -151,6 +151,10 @@ export async function runOrderAction(params: {
   shippingAmount?: number | null;
   paymentRef?: string | null;
   trackingNumber?: string | null;
+  /** Override defaults when sending invoice via Bale */
+  paymentSheba?: string | null;
+  paymentCardNumber?: string | null;
+  paymentCardHolder?: string | null;
   notifyCustomer?: boolean;
   adminUserId?: string | null;
 }) {
@@ -163,6 +167,9 @@ export async function runOrderAction(params: {
     shippingAmount,
     paymentRef,
     trackingNumber,
+    paymentSheba,
+    paymentCardNumber,
+    paymentCardHolder,
     notifyCustomer = true,
     adminUserId = null,
   } = params;
@@ -207,6 +214,11 @@ export async function runOrderAction(params: {
 
   let nextStatus: OrderStatus = order.status;
   const patch: Record<string, unknown> = {};
+  let invoicePaymentOverride: {
+    sheba: string;
+    cardNumber: string;
+    cardHolder: string;
+  } | null = null;
 
   if (noteBody) {
     patch.notes = noteBody;
@@ -223,6 +235,20 @@ export async function runOrderAction(params: {
         );
       }
       const settings = await getStoreSettingsAdmin();
+      const defaults = paymentDetailsFromSettings(settings);
+      invoicePaymentOverride = {
+        sheba: (paymentSheba ?? "").trim() || defaults.sheba,
+        cardNumber: (paymentCardNumber ?? "").trim() || defaults.cardNumber,
+        cardHolder: (paymentCardHolder ?? "").trim() || defaults.cardHolder,
+      };
+      if (
+        !invoicePaymentOverride.sheba &&
+        !invoicePaymentOverride.cardNumber
+      ) {
+        throw new Error(
+          "برای ارسال فاکتور، حداقل شبا یا شماره کارت را وارد کنید"
+        );
+      }
       const amount =
         confirmedAmount != null && confirmedAmount > 0
           ? Math.round(confirmedAmount)
@@ -351,8 +377,9 @@ export async function runOrderAction(params: {
     });
 
     if (action === "approve_invoice") {
-      const settings = await getStoreSettingsAdmin();
-      const payment = paymentDetailsFromSettings(settings);
+      const payment =
+        invoicePaymentOverride ??
+        paymentDetailsFromSettings(await getStoreSettingsAdmin());
       const text = buildCustomerInvoiceMessage(ctx, payment);
       baleResult = await sendBaleTextMessage({
         phone: updatedOrder.contact_phone,
@@ -360,8 +387,15 @@ export async function runOrderAction(params: {
         copyText: paymentCopyText(payment),
         requestId: `invoice-${orderId}-${updatedOrder.invoice_sent_at ?? now}`,
       });
+      const payHint = [
+        payment.cardNumber ? `کارت ${payment.cardNumber}` : null,
+        payment.sheba ? `شبا ${payment.sheba}` : null,
+        payment.cardHolder ? `به نام ${payment.cardHolder}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
       historyBodies.push(
-        `فاکتور صادر شد. مهلت واریز مشتری: ۱۰ دقیقه. مهلت تأیید ادمین: ۱۵ دقیقه.`
+        `فاکتور صادر شد و اطلاعات واریز در بله ارسال شد${payHint ? ` (${payHint})` : ""}. مهلت واریز مشتری: ۱۰ دقیقه. مهلت تأیید ادمین: ۱۵ دقیقه.`
       );
       if (noteBody) historyBodies.push(noteBody);
     } else if (action === "confirm_payment") {

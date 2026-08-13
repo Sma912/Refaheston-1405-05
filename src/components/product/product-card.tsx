@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useLinkStatus } from "next/link";
 import type { Product } from "@/types/database";
 import { formatPriceToman } from "@/lib/utils/price";
 import {
@@ -7,16 +10,46 @@ import {
 } from "@/lib/parser/bale-phone-parser";
 import { isDobitLaptopOrigin } from "@/lib/dobitkala/parse-laptop";
 import { ProductImage } from "@/components/product/product-image";
+import { cn } from "@/lib/utils";
 
-export function ProductCard({ product }: { product: Product }) {
+function CardPendingOverlay() {
+  const { pending } = useLinkStatus();
+  return (
+    <div
+      aria-hidden={!pending}
+      className={cn(
+        "pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/55 transition-opacity duration-150",
+        pending ? "opacity-100" : "opacity-0"
+      )}
+      style={{ animationDelay: "80ms" }}
+    >
+      <span
+        className={cn(
+          "h-8 w-8 rounded-full border-2 border-[var(--brand-blue)] border-t-transparent",
+          pending && "animate-spin"
+        )}
+      />
+    </div>
+  );
+}
+
+export function ProductCard({
+  product,
+  priority = false,
+}: {
+  product: Product;
+  priority?: boolean;
+}) {
   const noreg = isNonRegistryOrigin(product.origin);
   const hideOrigin = isDobitLaptopOrigin(product.origin);
 
   return (
     <Link
       href={`/products/${product.id}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition duration-300 hover:-translate-y-0.5 hover:border-[var(--brand-blue)]/30 hover:shadow-lg hover:shadow-slate-200/60"
+      prefetch
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition duration-300 hover:-translate-y-0.5 hover:border-[var(--brand-blue)]/30 hover:shadow-lg hover:shadow-slate-200/60"
     >
+      <CardPendingOverlay />
       <div className="relative">
         <ProductImage
           productId={product.id}
@@ -25,6 +58,12 @@ export function ProductCard({ product }: { product: Product }) {
           color={product.color}
           alt={productTitle(product)}
           fallbackUrl={product.image_url}
+          priority={priority}
+          skipRemoteResolve={
+            hideOrigin ||
+            product.category?.slug === "laptop" ||
+            isDobitLaptopOrigin(product.origin)
+          }
           className="aspect-[4/3]"
           imageClassName="group-hover:scale-[1.03]"
         />

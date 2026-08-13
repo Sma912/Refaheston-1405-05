@@ -45,6 +45,9 @@ export async function POST(req: Request) {
       shippingAmount?: number | null;
       paymentRef?: string | null;
       trackingNumber?: string | null;
+      paymentSheba?: string | null;
+      paymentCardNumber?: string | null;
+      paymentCardHolder?: string | null;
       notifyCustomer?: boolean;
     };
 
@@ -86,6 +89,9 @@ export async function POST(req: Request) {
       shippingAmount: body.shippingAmount,
       paymentRef: body.paymentRef,
       trackingNumber: body.trackingNumber,
+      paymentSheba: body.paymentSheba,
+      paymentCardNumber: body.paymentCardNumber,
+      paymentCardHolder: body.paymentCardHolder,
       notifyCustomer: body.notifyCustomer !== false,
       adminUserId: user.id,
     });

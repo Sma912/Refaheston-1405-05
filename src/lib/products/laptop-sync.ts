@@ -10,7 +10,7 @@ import {
   laptopFinalPrice,
   laptopOrigin,
 } from "@/lib/dobitkala/parse-laptop";
-import { mediaBaseUrl, mirrorRemoteImageToMedia } from "@/lib/media/vps";
+import { mirrorRemoteImageToMedia } from "@/lib/media/vps";
 import type { Product } from "@/types/database";
 
 export type LaptopSyncStats = {
@@ -128,11 +128,15 @@ export async function syncDobitkalaLaptops(opts?: {
     return prepareRow(item, prev?.image_url ?? null);
   });
 
-  // کالاهای بدون عکس، یا هنوز روی هاست مدیا نیستند
-  const mediaBase = mediaBaseUrl();
-  const needImage = prepared.filter(
-    (r) => !r.image_url || !r.image_url.startsWith(mediaBase)
-  );
+  // کالاهای بدون عکس، یا هنوز روی هاست مدیا (same-origin /media) نیستند
+  const needImage = prepared.filter((r) => {
+    const u = r.image_url?.trim() || "";
+    if (!u) return true;
+    if (u.startsWith("/media/")) return false;
+    if (u.includes("/refahston-media/")) return true; // rewrite/mirror to /media
+    if (u.includes("dobitkala.com")) return true;
+    return true;
+  });
   const toFetch = needImage.slice(0, maxNewImages);
   let imagesFetched = 0;
   let imagesFailed = 0;
