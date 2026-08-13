@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { normalizePhone, phoneToBaleNumber } from "@/lib/utils/phone";
+import { normalizePhone } from "@/lib/utils/phone";
+import { sendBaleOtpMessage } from "@/lib/bale/safir";
 import { createHash, randomInt } from "crypto";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
@@ -45,49 +50,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "ذخیره کد ناموفق بود" }, { status: 500 });
     }
 
-    const baleKey = process.env.BALE_API_ACCESS_KEY ?? "";
-    const botId = process.env.BALE_BOT_ID ?? "";
-    const baseUrl =
-      process.env.BALE_OTP_BASE_URL ?? "https://safir.bale.ai/api/v3";
     const allowDev = process.env.ALLOW_DEV_OTP === "true";
+    const result = await sendBaleOtpMessage({
+      phone: normalized,
+      otp: code,
+    });
 
-    let sentViaBale = false;
-
-    if (baleKey && botId) {
-      const balePhone = phoneToBaleNumber(normalized);
-      if (!balePhone) {
-        return NextResponse.json(
-          { error: "شماره موبایل ایرانی نامعتبر است" },
-          { status: 400 }
-        );
-      }
-      const response = await fetch(`${baseUrl}/send_message`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "api-access-key": baleKey,
+    if (!result.ok) {
+      return NextResponse.json(
+        {
+          error: result.error || "ارسال کد از طریق بله ناموفق بود. لطفاً دوباره تلاش کنید.",
+          details: result.details ?? null,
         },
-        body: JSON.stringify({
-          request_id: crypto.randomUUID(),
-          bot_id: Number(botId),
-          phone_number: balePhone,
-          message_data: { otp_message: { otp: code } },
-        }),
-      });
+        { status: 502 }
+      );
+    }
 
-      const payload = await response.json();
-      if (!response.ok || payload?.error_data) {
-        console.error("Bale OTP error", payload);
-        return NextResponse.json(
-          {
-            error: "ارسال کد از طریق بله ناموفق بود. لطفاً دوباره تلاش کنید.",
-            details: payload?.error_data ?? null,
-          },
-          { status: 502 }
-        );
-      }
-      sentViaBale = true;
-    } else if (!allowDev) {
+    const sentViaBale = !result.skipped;
+    if (!sentViaBale && !allowDev) {
       return NextResponse.json(
         { error: "سرویس ارسال OTP پیکربندی نشده است" },
         { status: 503 }
