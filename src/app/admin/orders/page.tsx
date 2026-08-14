@@ -65,6 +65,9 @@ function AdminOrdersPage() {
   const demoOrders = useDemoStore((s) => s.orders);
   const demoSettings = useDemoStore((s) => s.settings);
   const [settingsShipping, setSettingsShipping] = useState(0);
+  const [paymentWindowMinutes, setPaymentWindowMinutes] = useState(10);
+  const [adminConfirmWindowMinutes, setAdminConfirmWindowMinutes] =
+    useState(15);
   const updateOrder = useDemoStore((s) => s.updateOrder);
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [filter, setFilter] = useState<OrderStatus | "all">(() =>
@@ -106,12 +109,25 @@ function AdminOrdersPage() {
     }
 
     try {
-      const settingsRes = await fetch("/api/store/settings");
+      const settingsRes = await fetch("/api/admin/settings");
       const settingsPayload = (await settingsRes.json()) as {
-        settings?: { shipping_cost?: number };
+        settings?: {
+          shipping_cost?: number;
+          payment_window_minutes?: number;
+          admin_confirm_window_minutes?: number;
+        };
       };
-      if (settingsPayload.settings?.shipping_cost != null) {
-        setSettingsShipping(Number(settingsPayload.settings.shipping_cost) || 0);
+      const s = settingsPayload.settings;
+      if (s?.shipping_cost != null) {
+        setSettingsShipping(Number(s.shipping_cost) || 0);
+      }
+      if (s?.payment_window_minutes != null) {
+        setPaymentWindowMinutes(Number(s.payment_window_minutes) || 10);
+      }
+      if (s?.admin_confirm_window_minutes != null) {
+        setAdminConfirmWindowMinutes(
+          Number(s.admin_confirm_window_minutes) || 15
+        );
       }
     } catch {
       // ignore
@@ -270,10 +286,17 @@ function AdminOrdersPage() {
           shipValue != null ? shipValue : defaultShipping;
         patch.invoice_sent_at = now;
         patch.payment_deadline_at = new Date(
-          Date.now() + 10 * 60 * 1000
+          Date.now() +
+            (demoSettings.payment_window_minutes ?? paymentWindowMinutes) *
+              60 *
+              1000
         ).toISOString();
         patch.admin_confirm_deadline_at = new Date(
-          Date.now() + 15 * 60 * 1000
+          Date.now() +
+            (demoSettings.admin_confirm_window_minutes ??
+              adminConfirmWindowMinutes) *
+              60 *
+              1000
         ).toISOString();
       } else if (action === "confirm_payment") {
         if (!paymentRef.trim()) {
@@ -366,7 +389,11 @@ function AdminOrdersPage() {
       <div>
         <h1 className="text-2xl font-bold">مدیریت سفارش‌ها</h1>
         <p className="mt-1 text-sm text-slate-500">
-          مهلت مشتری برای واریز: ۱۰ دقیقه — مهلت تأیید ادمین: ۱۵ دقیقه
+          مهلت واریز مشتری: {demo ? demoSettings.payment_window_minutes ?? 10 : paymentWindowMinutes} دقیقه — مهلت تأیید ادمین:{" "}
+          {demo
+            ? demoSettings.admin_confirm_window_minutes ?? 15
+            : adminConfirmWindowMinutes}{" "}
+          دقیقه (قابل تنظیم از تنظیمات فروشگاه)
         </p>
       </div>
 
@@ -464,11 +491,11 @@ function AdminOrdersPage() {
           {status === "awaiting_payment" && (
             <div className="grid gap-2 md:grid-cols-2">
               <DeadlineCountdown
-                label="مهلت واریز مشتری (۱۰ دقیقه)"
+                label="مهلت واریز مشتری"
                 deadlineAt={selected.payment_deadline_at}
               />
               <DeadlineCountdown
-                label="مهلت تأیید ادمین (۱۵ دقیقه)"
+                label="مهلت تأیید ادمین"
                 deadlineAt={selected.admin_confirm_deadline_at}
               />
             </div>
@@ -564,7 +591,7 @@ function AdminOrdersPage() {
                 dir="ltr"
                 value={paymentRef}
                 onChange={(e) => setPaymentRef(e.target.value)}
-                placeholder="پس از دریافت رسید — حداکثر ۱۵ دقیقه"
+                placeholder="پس از دریافت رسید — طبق مهلت تنظیمات"
               />
             </div>
             <div>

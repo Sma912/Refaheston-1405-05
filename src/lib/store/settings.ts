@@ -60,6 +60,26 @@ function fromRow(row: Record<string, unknown> | null | undefined): StoreSettings
             ? Number(row.shipping_cost)
             : Number(String(row.shipping_cost).replace(/[^\d.-]/g, "")) ||
               base.shipping_cost,
+    payment_window_minutes: (() => {
+      const raw = row.payment_window_minutes;
+      if (raw == null) return base.payment_window_minutes;
+      const n =
+        typeof raw === "number"
+          ? raw
+          : Number(String(raw).replace(/[^\d]/g, ""));
+      if (!Number.isFinite(n)) return base.payment_window_minutes;
+      return Math.min(180, Math.max(1, Math.round(n)));
+    })(),
+    admin_confirm_window_minutes: (() => {
+      const raw = row.admin_confirm_window_minutes;
+      if (raw == null) return base.admin_confirm_window_minutes;
+      const n =
+        typeof raw === "number"
+          ? raw
+          : Number(String(raw).replace(/[^\d]/g, ""));
+      if (!Number.isFinite(n)) return base.admin_confirm_window_minutes;
+      return Math.min(180, Math.max(1, Math.round(n)));
+    })(),
     footer_tagline: coalesce(row.footer_tagline, base.footer_tagline),
     about_content: coalesce(row.about_content, base.about_content),
     terms_content: coalesce(row.terms_content, base.terms_content),
@@ -121,8 +141,8 @@ const getStoreSettingsCached = unstable_cache(
       return applyEnvFallbacks({ ...DEFAULT_STORE_SETTINGS });
     }
   },
-  ["store-settings-v1"],
-  { revalidate: 120, tags: ["store-settings"] }
+  ["store-settings-v2"],
+  { revalidate: 60, tags: ["store-settings"] }
 );
 
 export async function getStoreSettings(): Promise<StoreSettings> {

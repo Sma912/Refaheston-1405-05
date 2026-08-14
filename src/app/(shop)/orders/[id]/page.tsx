@@ -13,6 +13,7 @@ import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { InvoiceActions } from "@/components/orders/invoice-actions";
 import { OrderNotesHistory } from "@/components/orders/order-notes-history";
 import { DeadlineCountdown } from "@/components/orders/deadline-countdown";
+import { OrderLiveRefresh } from "@/components/orders/order-live-refresh";
 import { formatPriceToman } from "@/lib/utils/price";
 import { formatJalaliDate } from "@/lib/utils/date";
 import { ORDER_SUCCESS_MESSAGE } from "@/lib/utils/order-status";
@@ -22,6 +23,25 @@ import type { Order, OrderItem, OrderNote } from "@/types/database";
 type Props = { params: Promise<{ id: string }> };
 
 export const metadata = { title: "جزئیات سفارش" };
+export const dynamic = "force-dynamic";
+
+function orderStamp(
+  order: Order,
+  notesCount: number
+): string {
+  return [
+    order.status,
+    order.updated_at,
+    order.invoice_sent_at,
+    order.payment_confirmed_at,
+    order.payment_ref,
+    order.tracking_number,
+    order.notes,
+    String(notesCount),
+  ]
+    .map((v) => (v == null ? "" : String(v)))
+    .join("|");
+}
 
 export default async function OrderDetailPage({ params }: Props) {
   const { id } = await params;
@@ -90,6 +110,8 @@ export default async function OrderDetailPage({ params }: Props) {
     o.status === "shipped" ||
     o.status === "delivered";
 
+  const payMins = settings.payment_window_minutes ?? 10;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -102,6 +124,8 @@ export default async function OrderDetailPage({ params }: Props) {
         <OrderStatusBadge status={o.status} />
       </div>
 
+      <OrderLiveRefresh orderId={o.id} stamp={orderStamp(o, orderNotes.length)} />
+
       {o.status === "pending_confirmation" && (
         <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-900">
           {ORDER_SUCCESS_MESSAGE}
@@ -111,8 +135,9 @@ export default async function OrderDetailPage({ params }: Props) {
       {o.status === "awaiting_payment" && (
         <div className="space-y-2">
           <p className="rounded-2xl bg-orange-50 px-4 py-3 text-sm leading-7 text-orange-900">
-            فاکتور صادر شده است. لطفاً ظرف <strong>۱۰ دقیقه</strong> واریز کنید و
-            رسید را در بله بفرستید. در غیر این صورت سفارش لغو می‌شود.
+            فاکتور صادر شده است. لطفاً ظرف{" "}
+            <strong>{payMins} دقیقه</strong> واریز کنید و رسید را در بله
+            بفرستید. در غیر این صورت سفارش لغو می‌شود.
           </p>
           <DeadlineCountdown
             label="زمان باقی‌مانده برای واریز و ارسال رسید"
@@ -142,7 +167,9 @@ export default async function OrderDetailPage({ params }: Props) {
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-slate-500">ارسال</dt>
-              <dd>{formatPriceToman(orderShipping(o, settings.shipping_cost))}</dd>
+              <dd>
+                {formatPriceToman(orderShipping(o, settings.shipping_cost))}
+              </dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-slate-500">قابل پرداخت</dt>

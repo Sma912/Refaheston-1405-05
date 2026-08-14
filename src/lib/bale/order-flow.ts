@@ -15,9 +15,9 @@ import {
 } from "@/lib/bale/order-messages";
 import { paymentDetailsFromSettings, sendBaleTextMessage } from "@/lib/bale/safir";
 import {
-  ADMIN_CONFIRM_WINDOW_MS,
-  PAYMENT_WINDOW_MS,
+  adminConfirmWindowMs,
   getNoteTemplate,
+  paymentWindowMs,
 } from "@/lib/orders/note-templates";
 import { toMoney } from "@/lib/orders/totals";
 import { getStoreSettingsAdmin } from "@/lib/store/settings";
@@ -265,10 +265,11 @@ export async function runOrderAction(params: {
       patch.shipping_amount = ship;
       patch.invoice_sent_at = now;
       patch.payment_deadline_at = new Date(
-        nowDate.getTime() + PAYMENT_WINDOW_MS
+        nowDate.getTime() + paymentWindowMs(settings.payment_window_minutes)
       ).toISOString();
       patch.admin_confirm_deadline_at = new Date(
-        nowDate.getTime() + ADMIN_CONFIRM_WINDOW_MS
+        nowDate.getTime() +
+          adminConfirmWindowMs(settings.admin_confirm_window_minutes)
       ).toISOString();
       break;
     }
@@ -281,7 +282,7 @@ export async function runOrderAction(params: {
         : null;
       if (deadline != null && nowDate.getTime() > deadline) {
         throw new Error(
-          "مهلت ۱۵ دقیقه‌ای تأیید پرداخت به پایان رسیده؛ سفارش باید لغو شود"
+          "مهلت تأیید پرداخت به پایان رسیده؛ سفارش باید لغو شود"
         );
       }
       const paymentDeadline = order.payment_deadline_at
@@ -377,10 +378,16 @@ export async function runOrderAction(params: {
     });
 
     if (action === "approve_invoice") {
+      const paySettings = await getStoreSettingsAdmin();
       const payment =
-        invoicePaymentOverride ??
-        paymentDetailsFromSettings(await getStoreSettingsAdmin());
-      const text = buildCustomerInvoiceMessage(ctx, payment);
+        invoicePaymentOverride ?? paymentDetailsFromSettings(paySettings);
+      const text = buildCustomerInvoiceMessage(
+        {
+          ...ctx,
+          paymentWindowMinutes: paySettings.payment_window_minutes,
+        },
+        payment
+      );
       baleResult = await sendBaleTextMessage({
         phone: updatedOrder.contact_phone,
         text,
@@ -395,7 +402,7 @@ export async function runOrderAction(params: {
         .filter(Boolean)
         .join(" · ");
       historyBodies.push(
-        `فاکتور صادر شد و اطلاعات واریز در بله ارسال شد${payHint ? ` (${payHint})` : ""}. مهلت واریز مشتری: ۱۰ دقیقه. مهلت تأیید ادمین: ۱۵ دقیقه.`
+        `فاکتور صادر شد و اطلاعات واریز در بله ارسال شد${payHint ? ` (${payHint})` : ""}. مهلت واریز مشتری: ${paySettings.payment_window_minutes} دقیقه. مهلت تأیید ادمین: ${paySettings.admin_confirm_window_minutes} دقیقه.`
       );
       if (noteBody) historyBodies.push(noteBody);
     } else if (action === "confirm_payment") {

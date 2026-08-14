@@ -1,5 +1,33 @@
-export const PAYMENT_WINDOW_MS = 10 * 60 * 1000;
-export const ADMIN_CONFIRM_WINDOW_MS = 15 * 60 * 1000;
+/** پیش‌فرض‌ها — مقادیر واقعی از store_settings خوانده می‌شوند */
+export const DEFAULT_PAYMENT_WINDOW_MINUTES = 10;
+export const DEFAULT_ADMIN_CONFIRM_WINDOW_MINUTES = 15;
+export const PAYMENT_WINDOW_MS = DEFAULT_PAYMENT_WINDOW_MINUTES * 60 * 1000;
+export const ADMIN_CONFIRM_WINDOW_MS =
+  DEFAULT_ADMIN_CONFIRM_WINDOW_MINUTES * 60 * 1000;
+
+export function clampWindowMinutes(
+  value: unknown,
+  fallback: number,
+  min = 1,
+  max = 180
+): number {
+  const n =
+    typeof value === "number"
+      ? value
+      : Number(String(value ?? "").replace(/[^\d]/g, ""));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(n)));
+}
+
+export function paymentWindowMs(minutes?: number | null) {
+  const m = clampWindowMinutes(minutes, DEFAULT_PAYMENT_WINDOW_MINUTES);
+  return m * 60 * 1000;
+}
+
+export function adminConfirmWindowMs(minutes?: number | null) {
+  const m = clampWindowMinutes(minutes, DEFAULT_ADMIN_CONFIRM_WINDOW_MINUTES);
+  return m * 60 * 1000;
+}
 
 export type NoteTemplateKey =
   | "out_of_stock"

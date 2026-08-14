@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/demo/config";
 import { DEMO_STORE_SETTINGS } from "@/lib/store/defaults";
 import { getStoreSettings } from "@/lib/store/settings";
+import {
+  clampWindowMinutes,
+  DEFAULT_ADMIN_CONFIRM_WINDOW_MINUTES,
+  DEFAULT_PAYMENT_WINDOW_MINUTES,
+} from "@/lib/orders/note-templates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,10 +28,21 @@ const ALLOWED_KEYS = [
   "ecommerce_license_url",
   "store_address",
   "shipping_cost",
+  "payment_window_minutes",
+  "admin_confirm_window_minutes",
   "footer_tagline",
   "about_content",
   "terms_content",
 ] as const;
+
+function parseNonNegInt(value: unknown, fallback = 0) {
+  const n =
+    typeof value === "number"
+      ? value
+      : Number(String(value ?? "").replace(/[^\d]/g, ""));
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return Math.round(n);
+}
 
 export async function GET() {
   try {
@@ -95,11 +112,17 @@ export async function PUT(req: Request) {
       if (!(key in body)) continue;
       const value = body[key];
       if (key === "shipping_cost") {
-        const n =
-          typeof value === "number"
-            ? value
-            : Number(String(value ?? "").replace(/[^\d]/g, ""));
-        updatePayload[key] = Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
+        updatePayload[key] = parseNonNegInt(value, 0);
+      } else if (key === "payment_window_minutes") {
+        updatePayload[key] = clampWindowMinutes(
+          value,
+          DEFAULT_PAYMENT_WINDOW_MINUTES
+        );
+      } else if (key === "admin_confirm_window_minutes") {
+        updatePayload[key] = clampWindowMinutes(
+          value,
+          DEFAULT_ADMIN_CONFIRM_WINDOW_MINUTES
+        );
       } else {
         updatePayload[key] =
           typeof value === "string" ? value.trim() || null : null;
@@ -121,18 +144,21 @@ export async function PUT(req: Request) {
       .single();
 
     if (error) {
-      // اگر migration ستون جدید هنوز اجرا نشده، بدون آن فیلد دوباره تلاش کن
+      const msg = typeof error.message === "string" ? error.message : "";
       const missingCol =
-        typeof error.message === "string" &&
-        (error.message.includes("shipping_cost") ||
-          error.message.includes("bale_loan_bot_url"));
+        msg.includes("shipping_cost") ||
+        msg.includes("bale_loan_bot_url") ||
+        msg.includes("payment_window_minutes") ||
+        msg.includes("admin_confirm_window_minutes");
       if (missingCol) {
         const withoutMissing = { ...updatePayload };
-        if (error.message.includes("shipping_cost")) {
-          delete withoutMissing.shipping_cost;
-        }
-        if (error.message.includes("bale_loan_bot_url")) {
-          delete withoutMissing.bale_loan_bot_url;
+        for (const col of [
+          "shipping_cost",
+          "bale_loan_bot_url",
+          "payment_window_minutes",
+          "admin_confirm_window_minutes",
+        ]) {
+          if (msg.includes(col)) delete withoutMissing[col];
         }
         const retry = await supabase
           .from("store_settings")
@@ -143,11 +169,12 @@ export async function PUT(req: Request) {
           return NextResponse.json(
             {
               error: retry.error.message,
-              hint: "migrationهای 0005 و 0007 را در Supabase اجرا کنید",
+              hint: "migrationهای supabase/migrations را در SQL Editor اجرا کنید (از جمله 0013)",
             },
             { status: 500 }
           );
         }
+        revalidateTag("store-settings");
         return NextResponse.json({
           ok: true,
           settings: retry.data,
@@ -159,16 +186,13 @@ export async function PUT(req: Request) {
       return NextResponse.json(
         {
           error: error.message,
-          hint:
-            error.message.includes("shipping_cost") ||
-            error.message.includes("bale_loan_bot_url")
-              ? "فایل‌های migration در supabase/migrations را در SQL Editor اجرا کنید"
-              : undefined,
+          hint: "فایل‌های migration در supabase/migrations را در SQL Editor اجرا کنید",
         },
         { status: 500 }
       );
     }
 
+    revalidateTag("store-settings");
     return NextResponse.json({ ok: true, settings: data });
   } catch (err) {
     console.error(err);

@@ -193,6 +193,38 @@ export default function AdminSettingsPage() {
               }
             />
           </Field>
+          <Field
+            label="مهلت واریز مشتری (دقیقه)"
+            hint="بعد از صدور فاکتور، مشتری این مدت برای واریز و ارسال رسید فرصت دارد"
+          >
+            <Input
+              dir="ltr"
+              inputMode="numeric"
+              value={String(form.payment_window_minutes ?? 10)}
+              onChange={(e) =>
+                update(
+                  "payment_window_minutes",
+                  Number(e.target.value.replace(/[^\d]/g, "")) || 1
+                )
+              }
+            />
+          </Field>
+          <Field
+            label="مهلت تأیید پرداخت ادمین (دقیقه)"
+            hint="از زمان صدور فاکتور؛ اگر تا این زمان تأیید نشود سفارش لغو می‌شود"
+          >
+            <Input
+              dir="ltr"
+              inputMode="numeric"
+              value={String(form.admin_confirm_window_minutes ?? 15)}
+              onChange={(e) =>
+                update(
+                  "admin_confirm_window_minutes",
+                  Number(e.target.value.replace(/[^\d]/g, "")) || 1
+                )
+              }
+            />
+          </Field>
         </div>
       </section>
 

@@ -22,6 +22,8 @@ export type OrderMessageContext = {
   trackingNumber?: string | null;
   createdAt?: string | null;
   paymentDeadlineAt?: string | null;
+  /** مهلت واریز به دقیقه — برای متن پیام */
+  paymentWindowMinutes?: number | null;
 };
 
 function shortId(id: string) {
@@ -113,14 +115,14 @@ export function buildCustomerInvoiceMessage(
     "📸 بعد از واریز، عکس رسید را همین‌جا در گفتگوی بازوی بله (@refahestonbot) بفرستید.",
     "ادمین رسید را در بله می‌بیند و پرداخت را تأیید می‌کند.",
     "",
-    "⏰ مهلت واریز و ارسال رسید: ۱۰ دقیقه از زمان صدور فاکتور (به‌وقت تهران)."
+    `⏰ مهلت واریز و ارسال رسید: ${ctx.paymentWindowMinutes ?? 10} دقیقه از زمان صدور فاکتور (به‌وقت تهران).`
   );
   if (ctx.paymentDeadlineAt) {
     lines.push(`مهلت تا: ${formatJalaliDate(ctx.paymentDeadlineAt, true)}`);
   }
   lines.push(
     "پس از پایان مهلت، در صورت عدم تأیید پرداخت، سفارش لغو می‌شود."
-  )
+  );
 
   return lines.join("\n");
 }
