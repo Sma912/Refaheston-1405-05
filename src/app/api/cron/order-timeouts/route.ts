@@ -1,21 +1,12 @@
 import { NextResponse } from "next/server";
+import { authorizeCronRequest } from "@/lib/cron/auth";
 import { expireOverdueAwaitingOrders } from "@/lib/bale/order-flow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function authorized(req: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) {
-    // اگر سکرت تنظیم نشده، فقط از Vercel Cron با هدر خاص اجازه بده
-    return req.headers.get("x-vercel-cron") === "1";
-  }
-  const auth = req.headers.get("authorization") ?? "";
-  return auth === `Bearer ${secret}`;
-}
-
 export async function GET(req: Request) {
-  if (!authorized(req)) {
+  if (!authorizeCronRequest(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {

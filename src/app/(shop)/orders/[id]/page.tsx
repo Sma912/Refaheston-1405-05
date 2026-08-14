@@ -7,7 +7,7 @@ import {
   DEMO_USERS,
 } from "@/lib/demo/data";
 import { DEMO_STORE_SETTINGS } from "@/lib/store/defaults";
-import { getStoreSettings } from "@/lib/store/settings";
+import { getPublicStoreSettings } from "@/lib/store/settings";
 import { expireOverdueAwaitingOrders } from "@/lib/bale/order-flow";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { InvoiceActions } from "@/components/orders/invoice-actions";
@@ -92,7 +92,7 @@ export default async function OrderDetailPage({ params }: Props) {
           .select("full_name, phone")
           .eq("id", user.id)
           .maybeSingle(),
-        getStoreSettings(),
+        getPublicStoreSettings(),
       ]);
     orderItems = (items as OrderItem[]) ?? [];
     orderNotes = (notes as OrderNote[]) ?? [];

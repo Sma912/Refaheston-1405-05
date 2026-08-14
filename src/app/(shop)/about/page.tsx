@@ -1,9 +1,9 @@
 import { AboutPageClient } from "@/components/content/about-page-client";
-import { getStoreSettings } from "@/lib/store/settings";
+import { getPublicStoreSettings } from "@/lib/store/settings";
 
 export const metadata = { title: "درباره ما" };
 
 export default async function AboutPage() {
-  const settings = await getStoreSettings();
+  const settings = await getPublicStoreSettings();
   return <AboutPageClient initialSettings={settings} />;
 }

@@ -1,10 +1,10 @@
-import { getStoreSettings } from "@/lib/store/settings";
+import { getPublicStoreSettings } from "@/lib/store/settings";
 
 /**
  * بنر تبلیغاتی راهنمای وام بانک رسالت — لینک به ربات بله
  */
 export async function ResalatLoanPromoBanner() {
-  const settings = await getStoreSettings();
+  const settings = await getPublicStoreSettings();
   const href =
     settings.bale_loan_bot_url.trim() ||
     process.env.NEXT_PUBLIC_BALE_LOAN_BOT_URL?.trim() ||

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorizeCronRequest } from "@/lib/cron/auth";
 import { isDemoMode } from "@/lib/demo/config";
 import {
   ensureBaleWebhookConfigured,
@@ -9,23 +10,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function authorized(req: Request) {
-  const secret =
-    process.env.CRON_SECRET?.trim() ||
-    process.env.BALE_WEBHOOK_SECRET?.trim() ||
-    "";
-  if (req.headers.get("x-vercel-cron") === "1") return true;
-  if (!secret) return false;
-  const auth = req.headers.get("authorization") ?? "";
-  return auth === `Bearer ${secret}`;
-}
-
 /**
  * شبکه ایمنی: هر بافر گیرکرده را همگام می‌کند و وب‌هوک بله را چک/تعمیر می‌کند.
  * روی Hobby حداکثر روزانه قابل زمان‌بندی است؛ در Pro می‌تواند مکرر باشد.
  */
 export async function GET(req: Request) {
-  if (!authorized(req)) {
+  if (!authorizeCronRequest(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (isDemoMode()) {

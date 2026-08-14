@@ -109,13 +109,14 @@ export function applyEnvFallbacks(settings: StoreSettings): StoreSettings {
   };
 }
 
-/** نسخه عمومی — شبا/کارت هرگز به فرانت فروشگاه نرود */
+/** نسخه عمومی — شبا/کارت/شماره ادمین بله هرگز به فرانت فروشگاه نرود */
 export function toPublicStoreSettings(settings: StoreSettings): StoreSettings {
   return {
     ...settings,
     payment_sheba: "",
     payment_card_number: "",
     payment_card_holder: "",
+    bale_admin_phone: "",
   };
 }
 
