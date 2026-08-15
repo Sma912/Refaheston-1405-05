@@ -251,6 +251,7 @@ export function buildProductSyncPlan(
 
   const rows: SyncProductRow[] = [];
   const keysByScope = emptyKeysByScope();
+  const rowByKey = new Map<string, SyncProductRow>();
 
   for (const p of parsed.products) {
     const detected = scopeForParsedProduct(p);
@@ -273,7 +274,7 @@ export function buildProductSyncPlan(
       price *= 1000;
     }
     const key = productVariantKey({ ...p, origin });
-    rows.push({
+    const row: SyncProductRow = {
       brand: p.brand,
       model: p.model,
       storage: p.storage,
@@ -287,8 +288,14 @@ export function buildProductSyncPlan(
       raw_import_text: p.raw_line,
       scope,
       key,
-    });
-    keysByScope[scope].add(key);
+    };
+    // تکراری در یک لیست → آخرین قیمت برنده (جلوگیری از خطای ON CONFLICT در upsert)
+    rowByKey.set(key, row);
+  }
+
+  for (const row of rowByKey.values()) {
+    rows.push(row);
+    keysByScope[row.scope].add(row.key);
   }
 
   const scopes = (Object.keys(keysByScope) as ProductListScope[]).filter(

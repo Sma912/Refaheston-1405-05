@@ -130,11 +130,18 @@ export async function syncProductsFromChannelText(input: {
   let inserted = 0;
   let updated = 0;
 
-  const upserts = plan.rows.map((row) => {
-    if (existingByKey.has(row.key)) updated += 1;
+  const byKey = new Map<string, ReturnType<typeof toUpsertPayload>>();
+  for (const row of plan.rows) {
+    byKey.set(
+      row.key,
+      toUpsertPayload(row, categoryIds[row.scope], plan.stampedAt)
+    );
+  }
+  const upserts = [...byKey.values()];
+  for (const key of byKey.keys()) {
+    if (existingByKey.has(key)) updated += 1;
     else inserted += 1;
-    return toUpsertPayload(row, categoryIds[row.scope], plan.stampedAt);
-  });
+  }
 
   const chunkSize = 50;
   for (let i = 0; i < upserts.length; i += chunkSize) {
