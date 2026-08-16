@@ -1,7 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   buildProductSyncPlan,
-  CATEGORY_SLUGS,
   planDeactivations,
   productVariantKey,
   type ProductListScope,
@@ -9,6 +8,11 @@ import {
   type SyncProductRow,
 } from "@/lib/products/sync";
 import type { Product } from "@/types/database";
+import { getStoreSettingsAdmin } from "@/lib/store/settings";
+import {
+  applyMarkupPercent,
+  markupPercentForScope,
+} from "@/lib/store/markup";
 
 async function resolveCategoryIds(
   admin: ReturnType<typeof createAdminClient>
@@ -86,6 +90,11 @@ export async function syncProductsFromChannelText(input: {
   forceScope?: ProductListScope | "auto";
   /** اگر false باشد فقط upsert؛ کالاهای غایب غیرفعال نمی‌شوند */
   deactivateMissing?: boolean;
+  /**
+   * اگر true باشد قیمت ورودی wholesale فرض می‌شود و درصد تنظیمات سایت اعمال می‌شود.
+   * برای همگام از کانال بله (که قبلاً سود خورده) false بگذارید.
+   */
+  applyMarkup?: boolean;
 }): Promise<ProductSyncStats> {
   const deactivateMissing = input.deactivateMissing !== false;
   const plan = buildProductSyncPlan(input.rawText, input.forceScope);
@@ -102,6 +111,14 @@ export async function syncProductsFromChannelText(input: {
         : ["هیچ محصولی از متن استخراج نشد"],
       stampedAt: plan.stampedAt,
     };
+  }
+
+  if (input.applyMarkup) {
+    const settings = await getStoreSettingsAdmin();
+    for (const row of plan.rows) {
+      const pct = markupPercentForScope(settings, row.scope);
+      row.price = applyMarkupPercent(row.price, pct);
+    }
   }
 
   const admin = createAdminClient();

@@ -12,6 +12,16 @@ function coalesce(value: unknown, fallback = ""): string {
   return value;
 }
 
+function parseMarkupPercent(raw: unknown, fallback: number): number {
+  if (raw == null) return fallback;
+  const n =
+    typeof raw === "number"
+      ? raw
+      : Number(String(raw).replace(/[^\d.-]/g, "").replace(",", "."));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(100, Math.max(0, Math.round(n * 1000) / 1000));
+}
+
 function fromRow(row: Record<string, unknown> | null | undefined): StoreSettings {
   const base = DEFAULT_STORE_SETTINGS;
   if (!row) return { ...base };
@@ -80,6 +90,34 @@ function fromRow(row: Record<string, unknown> | null | undefined): StoreSettings
       if (!Number.isFinite(n)) return base.admin_confirm_window_minutes;
       return Math.min(180, Math.max(1, Math.round(n)));
     })(),
+    markup_percent_mobile: parseMarkupPercent(
+      row.markup_percent_mobile,
+      base.markup_percent_mobile
+    ),
+    markup_percent_iphone_noreg: parseMarkupPercent(
+      row.markup_percent_iphone_noreg,
+      base.markup_percent_iphone_noreg
+    ),
+    markup_percent_tablet: parseMarkupPercent(
+      row.markup_percent_tablet,
+      base.markup_percent_tablet
+    ),
+    markup_percent_ipad: parseMarkupPercent(
+      row.markup_percent_ipad,
+      base.markup_percent_ipad
+    ),
+    markup_percent_xiaomi_pad: parseMarkupPercent(
+      row.markup_percent_xiaomi_pad,
+      base.markup_percent_xiaomi_pad
+    ),
+    markup_percent_console: parseMarkupPercent(
+      row.markup_percent_console,
+      base.markup_percent_console
+    ),
+    markup_percent_laptop: parseMarkupPercent(
+      row.markup_percent_laptop,
+      base.markup_percent_laptop
+    ),
     footer_tagline: coalesce(row.footer_tagline, base.footer_tagline),
     about_content: coalesce(row.about_content, base.about_content),
     terms_content: coalesce(row.terms_content, base.terms_content),

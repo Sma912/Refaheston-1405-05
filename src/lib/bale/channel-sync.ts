@@ -262,6 +262,8 @@ export async function flushChannelProductSync(
       importedBy: null,
       forceScope: "auto",
       deactivateMissing,
+      // متن کانال بله قبلاً سود خورده
+      applyMarkup: false,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "sync_failed";

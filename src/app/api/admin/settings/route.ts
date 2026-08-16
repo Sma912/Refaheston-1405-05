@@ -30,6 +30,13 @@ const ALLOWED_KEYS = [
   "shipping_cost",
   "payment_window_minutes",
   "admin_confirm_window_minutes",
+  "markup_percent_mobile",
+  "markup_percent_iphone_noreg",
+  "markup_percent_tablet",
+  "markup_percent_ipad",
+  "markup_percent_xiaomi_pad",
+  "markup_percent_console",
+  "markup_percent_laptop",
   "footer_tagline",
   "about_content",
   "terms_content",
@@ -42,6 +49,15 @@ function parseNonNegInt(value: unknown, fallback = 0) {
       : Number(String(value ?? "").replace(/[^\d]/g, ""));
   if (!Number.isFinite(n) || n < 0) return fallback;
   return Math.round(n);
+}
+
+function parseMarkupPercent(value: unknown, fallback = 2.7) {
+  const n =
+    typeof value === "number"
+      ? value
+      : Number(String(value ?? "").replace(/[^\d.-]/g, "").replace(",", "."));
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return Math.min(100, Math.round(n * 1000) / 1000);
 }
 
 export async function GET() {
@@ -123,6 +139,8 @@ export async function PUT(req: Request) {
           value,
           DEFAULT_ADMIN_CONFIRM_WINDOW_MINUTES
         );
+      } else if (key.startsWith("markup_percent_")) {
+        updatePayload[key] = parseMarkupPercent(value, 2.7);
       } else {
         updatePayload[key] =
           typeof value === "string" ? value.trim() || null : null;
@@ -149,7 +167,8 @@ export async function PUT(req: Request) {
         msg.includes("shipping_cost") ||
         msg.includes("bale_loan_bot_url") ||
         msg.includes("payment_window_minutes") ||
-        msg.includes("admin_confirm_window_minutes");
+        msg.includes("admin_confirm_window_minutes") ||
+        msg.includes("markup_percent_");
       if (missingCol) {
         const withoutMissing = { ...updatePayload };
         for (const col of [
@@ -157,8 +176,23 @@ export async function PUT(req: Request) {
           "bale_loan_bot_url",
           "payment_window_minutes",
           "admin_confirm_window_minutes",
+          "markup_percent_mobile",
+          "markup_percent_iphone_noreg",
+          "markup_percent_tablet",
+          "markup_percent_ipad",
+          "markup_percent_xiaomi_pad",
+          "markup_percent_console",
+          "markup_percent_laptop",
         ]) {
-          if (msg.includes(col)) delete withoutMissing[col];
+          if (msg.includes(col) || (col.startsWith("markup_percent_") && msg.includes("markup_percent_"))) {
+            delete withoutMissing[col];
+          }
+        }
+        // اگر خطای کلی روی markup بود همهٔ ستون‌های markup را حذف کن
+        if (msg.includes("markup_percent_")) {
+          for (const col of Object.keys(withoutMissing)) {
+            if (col.startsWith("markup_percent_")) delete withoutMissing[col];
+          }
         }
         const retry = await supabase
           .from("store_settings")
@@ -169,7 +203,7 @@ export async function PUT(req: Request) {
           return NextResponse.json(
             {
               error: retry.error.message,
-              hint: "migrationهای supabase/migrations را در SQL Editor اجرا کنید (از جمله 0013)",
+              hint: "migrationهای supabase/migrations را در SQL Editor اجرا کنید (از جمله 0015)",
             },
             { status: 500 }
           );

@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
       flushNow?: boolean;
       forceScope?: ProductListScope | "auto";
       source?: string;
+      /** قیمت ورودی بدون سود است؛ درصد تنظیمات سایت اعمال شود */
+      applyMarkup?: boolean;
     };
 
     if (typeof body.text === "string" && body.text.trim()) {
@@ -66,17 +68,21 @@ export async function POST(req: NextRequest) {
           : "auto";
 
       // مسیر مستقیم ربات مک/سرور: بدون بافر کانال
+      // پیش‌فرض: اعمال درصد سایت (ورودی wholesale). کانال بله صریحاً false می‌فرستد.
+      const applyMarkup = body.applyMarkup !== false;
       if (body.flushNow !== false) {
         const result = await syncProductsFromChannelText({
           rawText: body.text,
           importedBy: null,
           forceScope,
           deactivateMissing: true,
+          applyMarkup,
         });
         return NextResponse.json({
           ok: true,
           result,
           source: body.source ?? null,
+          applyMarkup,
         });
       }
 

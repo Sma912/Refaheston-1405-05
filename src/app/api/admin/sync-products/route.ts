@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as {
       rawText?: string;
       forceScope?: ProductListScope | "auto";
+      applyMarkup?: boolean;
     };
 
     const rawText = body.rawText?.trim() ?? "";
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
       rawText,
       importedBy: user.id,
       forceScope: body.forceScope ?? "auto",
+      applyMarkup: body.applyMarkup !== false,
     });
 
     return NextResponse.json({ ok: true, stats });

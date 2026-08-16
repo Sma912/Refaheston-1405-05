@@ -20,6 +20,14 @@ export type StoreSettings = {
   payment_window_minutes: number;
   /** مهلت ادمین برای تأیید پرداخت (دقیقه) */
   admin_confirm_window_minutes: number;
+  /** سود درصد — قیمت فروش = قیمت ورودی × (1 + percent/100) */
+  markup_percent_mobile: number;
+  markup_percent_iphone_noreg: number;
+  markup_percent_tablet: number;
+  markup_percent_ipad: number;
+  markup_percent_xiaomi_pad: number;
+  markup_percent_console: number;
+  markup_percent_laptop: number;
   footer_tagline: string;
   about_content: string;
   terms_content: string;
@@ -44,6 +52,13 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   shipping_cost: 0,
   payment_window_minutes: 10,
   admin_confirm_window_minutes: 15,
+  markup_percent_mobile: 2.7,
+  markup_percent_iphone_noreg: 2.7,
+  markup_percent_tablet: 2.7,
+  markup_percent_ipad: 2.7,
+  markup_percent_xiaomi_pad: 2.7,
+  markup_percent_console: 2.7,
+  markup_percent_laptop: 2.5,
   footer_tagline:
     "فروشگاه اینترنتی رفاهستون — تخصصی موبایل و لوازم الکترونیکی. پرداخت پس از تأیید موجودی از طریق اپلیکیشن بله انجام می‌شود.",
   about_content: `رفاهستون از سال‌ها فعالیت در بازار موبایل و لوازم الکترونیکی شکل گرفت؛ ابتدا به‌صورت فروش حضوری و سپس با حضور فعال در پیام‌رسان بله، جایی که لیست روز محصولات و قیمت‌ها برای مشتریان منتشر می‌شود.
@@ -82,6 +97,13 @@ export const DEMO_STORE_SETTINGS: StoreSettings = {
   shipping_cost: 150000,
   payment_window_minutes: 10,
   admin_confirm_window_minutes: 15,
+  markup_percent_mobile: 2.7,
+  markup_percent_iphone_noreg: 2.7,
+  markup_percent_tablet: 2.7,
+  markup_percent_ipad: 2.7,
+  markup_percent_xiaomi_pad: 2.7,
+  markup_percent_console: 2.7,
+  markup_percent_laptop: 2.5,
 };
 
 /** فقط فیلدهای عمومی برای نمایش سایت (همه به‌جز ممکن است admin phone جدا بماند — فعلاً همه عمومی‌اند چون در فوتر/تماس لازم‌اند) */

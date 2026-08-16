@@ -287,6 +287,49 @@ export default function AdminSettingsPage() {
         </div>
       </section>
 
+      </section>
+
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="font-semibold">درصد سود هر گروه</h2>
+        <p className="text-sm text-slate-500">
+          قیمت فروشگاه = قیمت ورودی لیست × (۱ + درصد ÷ ۱۰۰). مثلاً ۲.۷٪ یعنی ضرب در
+          ۱.۰۲۷. این درصد هنگام همگام‌سازی از ربات روی سایت اعمال می‌شود.
+        </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          {(
+            [
+              ["markup_percent_mobile", "موبایل (همراه‌تل)"],
+              ["markup_percent_iphone_noreg", "آیفون بدون رجیستری"],
+              ["markup_percent_ipad", "آیپد"],
+              ["markup_percent_xiaomi_pad", "تبلت شیائومی"],
+              ["markup_percent_tablet", "تبلت عمومی"],
+              ["markup_percent_console", "کنسول بازی"],
+              ["markup_percent_laptop", "لپ‌تاپ"],
+            ] as const
+          ).map(([key, label]) => (
+            <Field
+              key={key}
+              label={`${label} (%)`}
+              hint="عدد اعشاری مجاز است؛ مثلاً 2.7"
+            >
+              <Input
+                dir="ltr"
+                inputMode="decimal"
+                value={String(form[key] ?? 2.7)}
+                onChange={(e) =>
+                  update(
+                    key,
+                    Number(
+                      e.target.value.replace(/[^\d.-]/g, "").replace(",", ".")
+                    ) || 0
+                  )
+                }
+              />
+            </Field>
+          ))}
+        </div>
+      </section>
+
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="font-semibold">محتوای صفحات</h2>
         <Field label="متن کوتاه فوتر">
