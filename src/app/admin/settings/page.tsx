@@ -287,8 +287,6 @@ export default function AdminSettingsPage() {
         </div>
       </section>
 
-      </section>
-
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="font-semibold">درصد سود هر گروه</h2>
         <p className="text-sm text-slate-500">
