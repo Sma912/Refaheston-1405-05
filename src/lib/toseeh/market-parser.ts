@@ -59,7 +59,7 @@ function detectBrand(text: string): string {
   ) {
     return "Apple";
   }
-  if (t.includes("galaxy") || /\btab\s*s|\btab\s*a|samsung/.test(t)) {
+  if (t.includes("galaxy") || /\btab\s*s|\btab\s*a|samsung/.test(t) || /\bs2[4-9]\b|\bs26\b|\ba\d{2}\b/.test(t)) {
     return "Samsung";
   }
   if (t.includes("xiaomi") || t.includes("redmi") || t.includes("poco")) {
@@ -92,7 +92,15 @@ function normalizeAppleModel(m: string): string {
 export function parseMarketList(raw: string): MarketProduct[] {
   const lines = String(raw || "")
     .split(/\r?\n/)
-    .map((l) => l.trim())
+    .map((l) =>
+      l
+        .trim()
+        .replace(/^\*+/, "")
+        .replace(/\*+$/, "")
+        .replace(/^_+/, "")
+        .replace(/_+$/, "")
+        .trim()
+    )
     .filter(Boolean);
 
   const products: MarketProduct[] = [];
