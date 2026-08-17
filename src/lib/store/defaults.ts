@@ -28,6 +28,8 @@ export type StoreSettings = {
   markup_percent_xiaomi_pad: number;
   markup_percent_console: number;
   markup_percent_laptop: number;
+  markup_percent_accessory: number;
+  markup_percent_audio: number;
   footer_tagline: string;
   about_content: string;
   terms_content: string;
@@ -59,6 +61,8 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   markup_percent_xiaomi_pad: 2.7,
   markup_percent_console: 2.7,
   markup_percent_laptop: 2.5,
+  markup_percent_accessory: 2.7,
+  markup_percent_audio: 2.7,
   footer_tagline:
     "فروشگاه اینترنتی رفاهستون — تخصصی موبایل و لوازم الکترونیکی. پرداخت پس از تأیید موجودی از طریق اپلیکیشن بله انجام می‌شود.",
   about_content: `رفاهستون از سال‌ها فعالیت در بازار موبایل و لوازم الکترونیکی شکل گرفت؛ ابتدا به‌صورت فروش حضوری و سپس با حضور فعال در پیام‌رسان بله، جایی که لیست روز محصولات و قیمت‌ها برای مشتریان منتشر می‌شود.
@@ -104,6 +108,8 @@ export const DEMO_STORE_SETTINGS: StoreSettings = {
   markup_percent_xiaomi_pad: 2.7,
   markup_percent_console: 2.7,
   markup_percent_laptop: 2.5,
+  markup_percent_accessory: 2.7,
+  markup_percent_audio: 2.7,
 };
 
 /** فقط فیلدهای عمومی برای نمایش سایت (همه به‌جز ممکن است admin phone جدا بماند — فعلاً همه عمومی‌اند چون در فوتر/تماس لازم‌اند) */

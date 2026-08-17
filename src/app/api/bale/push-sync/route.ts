@@ -22,6 +22,8 @@ const SCOPES = new Set<ProductListScope>([
   "xiaomi-pad",
   "console",
   "laptop",
+  "accessory",
+  "audio",
 ]);
 
 /**

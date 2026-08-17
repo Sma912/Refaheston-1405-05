@@ -38,6 +38,8 @@ export default function AdminSettingsPage() {
   const [form, setForm] = useState<StoreSettings>(DEFAULT_STORE_SETTINGS);
   const [loading, setLoading] = useState(!demo);
   const [saving, setSaving] = useState(false);
+  const [toseehSyncing, setToseehSyncing] = useState(false);
+  const [toseehResult, setToseehResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (demo) {
@@ -97,6 +99,54 @@ export default function AdminSettingsPage() {
     }
   }
 
+  async function syncToseehNow() {
+    if (demo) {
+      toast.message("در حالت دمو همگام‌سازی تلگرام فعال نیست");
+      return;
+    }
+    setToseehSyncing(true);
+    setToseehResult(null);
+    try {
+      const res = await fetch("/api/admin/toseeh-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postToBale: true, channel: "toseehhamrah" }),
+      });
+      const payload = (await res.json()) as {
+        error?: string;
+        result?: {
+          ok?: boolean;
+          scanned?: number;
+          processed?: Array<{ kind: string; products: number; siteUpserted: number; baleChunks: number }>;
+          skipped?: Array<{ reason: string }>;
+          errors?: string[];
+        };
+      };
+      if (!res.ok) {
+        toast.error(payload.error ?? "همگام‌سازی ناموفق بود");
+        setToseehResult(payload.error ?? "خطا");
+        return;
+      }
+      const r = payload.result;
+      const lines = [
+        `پیام‌های خوانده‌شده: ${r?.scanned ?? 0}`,
+        `لیست‌های پردازش‌شده: ${r?.processed?.length ?? 0}`,
+        ...(r?.processed ?? []).map(
+          (p) =>
+            `• ${p.kind}: ${p.products} کالا → سایت ${p.siteUpserted} | بله ${p.baleChunks} پیام`
+        ),
+        r?.errors?.length ? `خطاها: ${r.errors.join(" | ")}` : "",
+      ].filter(Boolean);
+      setToseehResult(lines.join("\n"));
+      if (r?.ok) toast.success("همگام‌سازی توسعه همراه انجام شد");
+      else toast.error("همگام‌سازی ناقص بود — جزئیات را ببینید");
+    } catch {
+      toast.error("خطا در ارتباط با سرور");
+    } finally {
+      setToseehSyncing(false);
+    }
+  }
+
   if (loading) {
     return <p className="text-sm text-slate-500">در حال بارگذاری...</p>;
   }
@@ -109,6 +159,33 @@ export default function AdminSettingsPage() {
           اطلاعات تماس، پرداخت، مجوزها و محتوای صفحات درباره ما / شرایط
         </p>
       </div>
+
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="font-semibold">همگام‌سازی توسعه همراه (تلگرام)</h2>
+        <p className="text-sm text-slate-500">
+          وقتی لیست‌ها در کانال آمد، با این دکمه از{" "}
+          <span dir="ltr" className="font-mono text-xs">
+            t.me/toseehhamrah
+          </span>{" "}
+          خوانده می‌شوند، گوشی‌های رجیستری رد می‌شوند، بقیه با درصدهای تنظیمات به
+          سایت می‌روند و همزمان به کانال بله ارسال می‌شوند.
+        </p>
+        <Button
+          type="button"
+          onClick={() => void syncToseehNow()}
+          disabled={toseehSyncing}
+          variant="default"
+        >
+          {toseehSyncing
+            ? "در حال خواندن و ارسال..."
+            : "خواندن الان از تلگرام → سایت + بله"}
+        </Button>
+        {toseehResult ? (
+          <pre className="whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-xs text-slate-700 ring-1 ring-slate-200">
+            {toseehResult}
+          </pre>
+        ) : null}
+      </section>
 
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="font-semibold">تماس و پیگیری</h2>
@@ -303,6 +380,8 @@ export default function AdminSettingsPage() {
               ["markup_percent_tablet", "تبلت عمومی"],
               ["markup_percent_console", "کنسول بازی"],
               ["markup_percent_laptop", "لپ‌تاپ"],
+              ["markup_percent_accessory", "لوازم جانبی"],
+              ["markup_percent_audio", "صوتی و اسپیکر"],
             ] as const
           ).map(([key, label]) => (
             <Field

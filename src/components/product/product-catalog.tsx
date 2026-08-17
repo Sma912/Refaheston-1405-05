@@ -26,6 +26,8 @@ const ENABLED_CATS = new Set([
   "console",
   "laptop",
   "tablet",
+  "accessory",
+  "audio",
 ]);
 
 type SortKey = "default" | "price-asc" | "price-desc" | "popular";
@@ -65,13 +67,22 @@ function inCategory(product: Product, category: string): boolean {
   if (category === "iphone-noreg") return noreg || slug === "iphone-noreg";
   if (category === "ipad") return ipad && !noreg;
   if (category === "xiaomi-pad") return xiaomiPad && !noreg;
-  if (category === "tablet") return (ipad || xiaomiPad) && !noreg;
+  if (category === "tablet") return slug === "tablet";
   if (category === "console") return console_;
   if (category === "laptop") return laptop;
+  if (category === "accessory") return slug === "accessory";
+  if (category === "audio") return slug === "audio";
   if (category === "mobile")
     return (
-      slug === "mobile" ||
-      (!slug && !noreg && !ipad && !xiaomiPad && !console_ && !laptop)
+      (slug === "mobile" || !slug) &&
+      !noreg &&
+      !ipad &&
+      !xiaomiPad &&
+      !console_ &&
+      !laptop &&
+      slug !== "accessory" &&
+      slug !== "audio" &&
+      slug !== "tablet"
     );
   return false;
 }

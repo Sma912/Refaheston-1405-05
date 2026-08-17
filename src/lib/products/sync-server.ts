@@ -25,6 +25,8 @@ async function resolveCategoryIds(
     { scope: "xiaomi-pad", name: "تبلت شیائومی", slug: "xiaomi-pad" },
     { scope: "console", name: "کنسول بازی", slug: "console" },
     { scope: "laptop", name: "لپ‌تاپ", slug: "laptop" },
+    { scope: "accessory", name: "لوازم جانبی", slug: "accessory" },
+    { scope: "audio", name: "صوتی و اسپیکر", slug: "audio" },
   ];
 
   const { data } = await admin
@@ -43,6 +45,8 @@ async function resolveCategoryIds(
     "xiaomi-pad": null,
     console: null,
     laptop: null,
+    accessory: null,
+    audio: null,
   };
 
   for (const row of data ?? []) {

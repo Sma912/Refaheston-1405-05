@@ -21,7 +21,9 @@ export const SHOP_CATEGORIES: ShopCategory[] = [
   { id: "xiaomi-pad", label: "تبلت شیائومی", enabled: true },
   { id: "console", label: "کنسول بازی", enabled: true },
   { id: "laptop", label: "لپ‌تاپ", enabled: true },
-  { id: "accessory", label: "لوازم جانبی", enabled: false },
+  { id: "tablet", label: "تبلت", enabled: true },
+  { id: "accessory", label: "لوازم جانبی", enabled: true },
+  { id: "audio", label: "صوتی و اسپیکر", enabled: true },
 ];
 
 type Props = {
@@ -56,6 +58,8 @@ export function CategoryBrandNav({
     "console",
     "laptop",
     "tablet",
+    "accessory",
+    "audio",
   ].includes(selectedCategory);
 
   return (

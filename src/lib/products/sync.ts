@@ -12,7 +12,9 @@ export type ProductListScope =
   | "ipad"
   | "xiaomi-pad"
   | "console"
-  | "laptop";
+  | "laptop"
+  | "accessory"
+  | "audio";
 
 export const CATEGORY_SLUGS: Record<ProductListScope, string> = {
   mobile: "mobile",
@@ -22,6 +24,8 @@ export const CATEGORY_SLUGS: Record<ProductListScope, string> = {
   "xiaomi-pad": "xiaomi-pad",
   console: "console",
   laptop: "laptop",
+  accessory: "accessory",
+  audio: "audio",
 };
 
 export const DEMO_CATEGORY_IDS: Record<ProductListScope, string> = {
@@ -32,6 +36,8 @@ export const DEMO_CATEGORY_IDS: Record<ProductListScope, string> = {
   "xiaomi-pad": "demo-cat-xiaomi-pad",
   console: "demo-cat-console",
   laptop: "demo-cat-laptop",
+  accessory: "demo-cat-accessory",
+  audio: "demo-cat-audio",
 };
 
 export const SCOPE_LABELS: Record<ProductListScope, string> = {
@@ -42,6 +48,8 @@ export const SCOPE_LABELS: Record<ProductListScope, string> = {
   "xiaomi-pad": "تبلت شیائومی",
   console: "کنسول بازی",
   laptop: "لپ‌تاپ",
+  accessory: "لوازم جانبی",
+  audio: "صوتی و اسپیکر",
 };
 
 export type SyncProductRow = {
@@ -239,6 +247,8 @@ function emptyKeysByScope(): Record<ProductListScope, Set<string>> {
     "xiaomi-pad": new Set(),
     console: new Set(),
     laptop: new Set(),
+    accessory: new Set(),
+    audio: new Set(),
   };
 }
 
@@ -267,7 +277,10 @@ export function buildProductSyncPlan(
       (scope === "tablet" ||
         scope === "ipad" ||
         scope === "xiaomi-pad" ||
-        scope === "console") &&
+        scope === "console" ||
+        scope === "accessory" ||
+        scope === "audio" ||
+        scope === "laptop") &&
       price > 0 &&
       price < 10_000_000
     ) {

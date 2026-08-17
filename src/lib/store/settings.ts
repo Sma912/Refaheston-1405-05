@@ -118,6 +118,14 @@ function fromRow(row: Record<string, unknown> | null | undefined): StoreSettings
       row.markup_percent_laptop,
       base.markup_percent_laptop
     ),
+    markup_percent_accessory: parseMarkupPercent(
+      row.markup_percent_accessory,
+      base.markup_percent_accessory
+    ),
+    markup_percent_audio: parseMarkupPercent(
+      row.markup_percent_audio,
+      base.markup_percent_audio
+    ),
     footer_tagline: coalesce(row.footer_tagline, base.footer_tagline),
     about_content: coalesce(row.about_content, base.about_content),
     terms_content: coalesce(row.terms_content, base.terms_content),

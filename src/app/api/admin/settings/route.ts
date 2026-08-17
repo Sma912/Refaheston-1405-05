@@ -37,6 +37,8 @@ const ALLOWED_KEYS = [
   "markup_percent_xiaomi_pad",
   "markup_percent_console",
   "markup_percent_laptop",
+  "markup_percent_accessory",
+  "markup_percent_audio",
   "footer_tagline",
   "about_content",
   "terms_content",
@@ -183,6 +185,8 @@ export async function PUT(req: Request) {
           "markup_percent_xiaomi_pad",
           "markup_percent_console",
           "markup_percent_laptop",
+          "markup_percent_accessory",
+          "markup_percent_audio",
         ]) {
           if (msg.includes(col) || (col.startsWith("markup_percent_") && msg.includes("markup_percent_"))) {
             delete withoutMissing[col];

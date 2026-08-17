@@ -12,6 +12,8 @@ export function markupPercentForScope(
     | "markup_percent_xiaomi_pad"
     | "markup_percent_console"
     | "markup_percent_laptop"
+    | "markup_percent_accessory"
+    | "markup_percent_audio"
   >,
   scope: ProductListScope
 ): number {
@@ -28,6 +30,10 @@ export function markupPercentForScope(
       return settings.markup_percent_console;
     case "laptop":
       return settings.markup_percent_laptop;
+    case "accessory":
+      return settings.markup_percent_accessory;
+    case "audio":
+      return settings.markup_percent_audio;
     case "mobile":
     default:
       return settings.markup_percent_mobile;

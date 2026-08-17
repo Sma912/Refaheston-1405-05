@@ -32,6 +32,9 @@ const PRODUCT_MENU = [
   { href: "/?cat=xiaomi-pad", label: "تبلت شیائومی", cat: "xiaomi-pad" },
   { href: "/?cat=console", label: "کنسول بازی", cat: "console" },
   { href: "/?cat=laptop", label: "لپ‌تاپ", cat: "laptop" },
+  { href: "/?cat=tablet", label: "تبلت", cat: "tablet" },
+  { href: "/?cat=accessory", label: "لوازم جانبی", cat: "accessory" },
+  { href: "/?cat=audio", label: "صوتی و اسپیکر", cat: "audio" },
 ];
 
 export function SiteHeader() {
