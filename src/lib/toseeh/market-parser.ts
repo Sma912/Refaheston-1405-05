@@ -11,7 +11,7 @@ export type MarketProduct = {
 };
 
 function normalizePrice(raw: string): number {
-  let price = String(raw || "")
+  const price = String(raw || "")
     .replace(/[^\d.,\/]/g, "")
     .replace(/,/g, "");
   if (!price) return 0;
