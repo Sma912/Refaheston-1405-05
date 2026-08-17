@@ -1,5 +1,4 @@
-import { callBaleBotApi } from "@/lib/bale/bot-api";
-import { syncProductsFromChannelText } from "@/lib/products/sync-server";
+import { syncProductsFromMarketProducts } from "@/lib/products/sync-server";
 import type { ProductListScope } from "@/lib/products/sync";
 import { getStoreSettingsAdmin } from "@/lib/store/settings";
 import { markupPercentForScope } from "@/lib/store/markup";
@@ -10,10 +9,9 @@ import {
   toseehKindToSiteScope,
   type ToseehListKind,
 } from "@/lib/toseeh/list-kinds";
-import {
-  formatMarketProductsForBale,
-  parseMarketList,
-} from "@/lib/toseeh/market-parser";
+import { parseMarketList } from "@/lib/toseeh/market-parser";
+import { bumpToseehChannelPrices } from "@/lib/toseeh/price-bump";
+import { callBaleBotApi } from "@/lib/bale/bot-api";
 
 function splitMessage(text: string, maxLen = 4000): string[] {
   if (text.length <= maxLen) return [text];
@@ -153,28 +151,16 @@ export async function syncToseehFromTelegram(options?: {
       const percent = markupPercentForScope(settings, scope as ProductListScope);
       const title = toseehKindTitle(kind);
 
-      const wholesaleText = formatMarketProductsForBale(products, {
-        title,
-        percent: 0,
-        storeName: "رفاهستون",
-        phones: settings.contact_phone || undefined,
-        address: settings.store_address || undefined,
-      });
-
-      const retailText = formatMarketProductsForBale(products, {
-        title,
-        percent,
-        storeName: "رفاهستون",
-        phones: settings.contact_phone || undefined,
-        address: settings.store_address || undefined,
-      });
-
-      const siteStats = await syncProductsFromChannelText({
-        rawText: wholesaleText,
-        forceScope: scope as ProductListScope,
+      const siteStats = await syncProductsFromMarketProducts({
+        products,
+        scope: scope as ProductListScope,
         applyMarkup: true,
-        deactivateMissing: true,
+        sourceLabel: `toseeh:${kind}`,
       });
+
+      // برای بله: همان فرمت کانال با قیمت × درصد
+      const retailText =
+        `🏪 رفاهستون | ${title}\n` + bumpToseehChannelPrices(body, percent);
 
       let baleChunks = 0;
       if (postToBale) {

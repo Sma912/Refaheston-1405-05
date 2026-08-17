@@ -20,6 +20,11 @@ async function resolveCategoryIds(
   const wanted: { scope: ProductListScope; name: string; slug: string }[] = [
     { scope: "mobile", name: "موبایل", slug: "mobile" },
     { scope: "iphone-noreg", name: "آیفون بدون رجیستری", slug: "iphone-noreg" },
+    {
+      scope: "android-noreg",
+      name: "اندروید بدون رجیستری",
+      slug: "android-noreg",
+    },
     { scope: "tablet", name: "تبلت", slug: "tablet" },
     { scope: "ipad", name: "آیپد", slug: "ipad" },
     { scope: "xiaomi-pad", name: "تبلت شیائومی", slug: "xiaomi-pad" },
@@ -40,6 +45,7 @@ async function resolveCategoryIds(
   const map: Record<ProductListScope, string | null> = {
     mobile: null,
     "iphone-noreg": null,
+    "android-noreg": null,
     tablet: null,
     ipad: null,
     "xiaomi-pad": null,
@@ -208,5 +214,152 @@ export async function syncProductsFromChannelText(input: {
     scopes: plan.scopes,
     errors: plan.parsed.errors,
     stampedAt: plan.stampedAt,
+  };
+}
+
+/** همگام مستقیم از لیست بازار توسعه همراه — بدون عبور از پارسر بله */
+export async function syncProductsFromMarketProducts(input: {
+  products: Array<{ brand: string; model: string; color: string; price: number }>;
+  scope: ProductListScope;
+  applyMarkup?: boolean;
+  sourceLabel?: string;
+}): Promise<ProductSyncStats> {
+  const stampedAt = new Date().toISOString();
+  if (!input.products.length) {
+    return {
+      parsed: 0,
+      upserted: 0,
+      inserted: 0,
+      updated: 0,
+      deactivated: 0,
+      scopes: [],
+      errors: ["محصولی نیست"],
+      stampedAt,
+    };
+  }
+
+  const settings = await getStoreSettingsAdmin();
+  const pct = input.applyMarkup
+    ? markupPercentForScope(settings, input.scope)
+    : 0;
+
+  const needsThousand =
+    input.scope === "tablet" ||
+    input.scope === "ipad" ||
+    input.scope === "xiaomi-pad" ||
+    input.scope === "console" ||
+    input.scope === "accessory" ||
+    input.scope === "audio" ||
+    input.scope === "laptop" ||
+    input.scope === "iphone-noreg" ||
+    input.scope === "android-noreg";
+
+  const rows: SyncProductRow[] = [];
+  for (const p of input.products) {
+    let model = p.model;
+    let ram: string | null = null;
+    let storage: string | null = null;
+    const mem = model.match(/\((\d+)\s*\/\s*(\d+)\s*GB\)/i);
+    if (mem) {
+      ram = `${mem[1]}GB`;
+      storage = `${mem[2]}GB`;
+      model = model.replace(mem[0], "").replace(/\s+/g, " ").trim();
+    } else {
+      const onlyStorage = model.match(/\((\d+)\s*GB\)/i);
+      if (onlyStorage) {
+        storage = `${onlyStorage[1]}GB`;
+        model = model.replace(onlyStorage[0], "").replace(/\s+/g, " ").trim();
+      }
+    }
+
+    let price = p.price;
+    if (needsThousand && price > 0 && price < 10_000_000) price *= 1000;
+    price = applyMarkupPercent(price, pct);
+
+    const origin =
+      input.scope === "iphone-noreg"
+        ? /not\s*ch/i.test(p.model)
+          ? "Not CH"
+          : "Not ZAA"
+        : input.scope === "android-noreg"
+          ? "No register"
+          : null;
+
+    const key = productVariantKey({
+      brand: p.brand,
+      model,
+      storage,
+      ram,
+      color: p.color || "—",
+      origin,
+    });
+
+    rows.push({
+      brand: p.brand || "سایر",
+      model,
+      storage,
+      ram,
+      color: p.color || "—",
+      price,
+      origin,
+      description:
+        input.scope === "iphone-noreg"
+          ? "آیفون بدون کد ریجستری"
+          : input.scope === "android-noreg"
+            ? "اندروید بدون رجیستری (توسعه همراه)"
+            : null,
+      is_active: true,
+      raw_import_text: input.sourceLabel || null,
+      scope: input.scope,
+      key,
+    });
+  }
+
+  const admin = createAdminClient();
+  const categoryIds = await resolveCategoryIds(admin);
+  const existingByKey = new Map<string, true>();
+  const { data: existingRows } = await admin
+    .from("products")
+    .select("brand,model,storage,ram,color,origin")
+    .eq("category_id", categoryIds[input.scope] ?? "");
+  for (const e of existingRows ?? []) {
+    existingByKey.set(productVariantKey(e as Product), true);
+  }
+
+  let inserted = 0;
+  let updated = 0;
+  const byKey = new Map<string, ReturnType<typeof toUpsertPayload>>();
+  for (const row of rows) {
+    byKey.set(row.key, toUpsertPayload(row, categoryIds[input.scope], stampedAt));
+  }
+  for (const key of byKey.keys()) {
+    if (existingByKey.has(key)) updated += 1;
+    else inserted += 1;
+  }
+
+  const upserts = [...byKey.values()];
+  for (let i = 0; i < upserts.length; i += 50) {
+    const chunk = upserts.slice(i, i + 50);
+    const { error } = await admin.from("products").upsert(chunk, {
+      onConflict: "brand,model,storage,ram,color,origin",
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  await admin.from("product_imports").insert({
+    raw_text: input.sourceLabel || `market:${input.scope}`,
+    parsed_count: rows.length,
+    imported_by: null,
+  });
+
+  return {
+    parsed: rows.length,
+    upserted: rows.length,
+    inserted,
+    updated,
+    deactivated: 0,
+    scopes: [input.scope],
+    errors: [],
+    stampedAt,
   };
 }

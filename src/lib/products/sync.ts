@@ -8,6 +8,7 @@ import type { ParsedProduct, Product } from "@/types/database";
 export type ProductListScope =
   | "mobile"
   | "iphone-noreg"
+  | "android-noreg"
   | "tablet"
   | "ipad"
   | "xiaomi-pad"
@@ -19,6 +20,7 @@ export type ProductListScope =
 export const CATEGORY_SLUGS: Record<ProductListScope, string> = {
   mobile: "mobile",
   "iphone-noreg": "iphone-noreg",
+  "android-noreg": "android-noreg",
   tablet: "tablet",
   ipad: "ipad",
   "xiaomi-pad": "xiaomi-pad",
@@ -31,6 +33,7 @@ export const CATEGORY_SLUGS: Record<ProductListScope, string> = {
 export const DEMO_CATEGORY_IDS: Record<ProductListScope, string> = {
   mobile: "demo-cat-mobile",
   "iphone-noreg": "demo-cat-iphone-noreg",
+  "android-noreg": "demo-cat-android-noreg",
   tablet: "demo-cat-tablet",
   ipad: "demo-cat-ipad",
   "xiaomi-pad": "demo-cat-xiaomi-pad",
@@ -43,6 +46,7 @@ export const DEMO_CATEGORY_IDS: Record<ProductListScope, string> = {
 export const SCOPE_LABELS: Record<ProductListScope, string> = {
   mobile: "موبایل",
   "iphone-noreg": "آیفون بدون رجیستری",
+  "android-noreg": "اندروید بدون رجیستری",
   tablet: "تبلت",
   ipad: "آیپد",
   "xiaomi-pad": "تبلت شیائومی",
@@ -242,6 +246,7 @@ function emptyKeysByScope(): Record<ProductListScope, Set<string>> {
   return {
     mobile: new Set(),
     "iphone-noreg": new Set(),
+    "android-noreg": new Set(),
     tablet: new Set(),
     ipad: new Set(),
     "xiaomi-pad": new Set(),
@@ -296,7 +301,11 @@ export function buildProductSyncPlan(
       price,
       origin,
       description:
-        scope === "iphone-noreg" ? "آیفون بدون کد ریجستری" : null,
+        scope === "iphone-noreg"
+          ? "آیفون بدون کد ریجستری"
+          : scope === "android-noreg"
+            ? "اندروید بدون رجیستری (توسعه همراه)"
+            : null,
       is_active: true,
       raw_import_text: p.raw_line,
       scope,

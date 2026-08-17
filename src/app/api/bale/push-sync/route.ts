@@ -17,6 +17,7 @@ export const maxDuration = 60;
 const SCOPES = new Set<ProductListScope>([
   "mobile",
   "iphone-noreg",
+  "android-noreg",
   "tablet",
   "ipad",
   "xiaomi-pad",

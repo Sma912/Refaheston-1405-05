@@ -17,6 +17,11 @@ export const SHOP_CATEGORIES: ShopCategory[] = [
     label: "آیفون بدون رجیستری",
     enabled: true,
   },
+  {
+    id: "android-noreg",
+    label: "اندروید بدون رجیستری",
+    enabled: true,
+  },
   { id: "ipad", label: "آیپد", enabled: true },
   { id: "xiaomi-pad", label: "تبلت شیائومی", enabled: true },
   { id: "console", label: "کنسول بازی", enabled: true },
@@ -53,6 +58,7 @@ export function CategoryBrandNav({
   const showBrands = [
     "mobile",
     "iphone-noreg",
+    "android-noreg",
     "ipad",
     "xiaomi-pad",
     "console",

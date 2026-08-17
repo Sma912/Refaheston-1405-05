@@ -5,10 +5,10 @@ export type ToseehListKind =
   | "android-noreg"
   | "ipad"
   | "xiaomi-pad"
-  | "tablet" // سامسونگ تب و مشابه
+  | "tablet"
   | "playstation"
-  | "accessory" // ایرپاد، واچ، قلم، آداپتور
-  | "audio" // JBL / Harman
+  | "accessory"
+  | "audio"
   | "laptop"
   | "skip-registered"
   | "skip";
@@ -18,7 +18,6 @@ export function detectToseehListKind(body: string): ToseehListKind {
   const t = body.toLowerCase();
   const raw = body;
 
-  // پیام‌های صبح بخیر / تبلیغ
   if (
     /صبح بخیر|روز بخیر|لیست[‌\s]*های امروز|فرصت‌های خوب|کانال رسمی/.test(raw) &&
     !/🔥|💸|📲|💻|🎧|⌚️|🔊/.test(raw)
@@ -36,7 +35,6 @@ export function detectToseehListKind(body: string): ToseehListKind {
   }
 
   if (/\bipad\b/.test(t) || /\s*_?ipad/.test(t)) return "ipad";
-
   if (/macbook|mackbook/.test(t) || /💻/.test(raw)) return "laptop";
 
   if (
@@ -77,37 +75,29 @@ export function detectToseehListKind(body: string): ToseehListKind {
     /iphone/.test(t) ||
     /آیفون/.test(t) ||
     /📲\s*1[3-9]/.test(raw) ||
-    /17\s*pro|17\s*-?\s*normal|16\s*pro/.test(t);
+    /17\s*pro|17\s*-?\s*normal|16\s*pro|16\s*-?\s*normal/.test(t);
+  const hasAndroidPhone =
+    /s2[4-9]|s26|galaxy|📲\s*s\d|📲\s*a\d/i.test(raw) ||
+    /\ba(07|17|26|36|37|56)\b/.test(t);
 
+  // رجیستری / شرکتی → هرگز وارد کاتالوگ همراه‌تل یا noreg نشود
+  const isRegisteredList =
+    (/شرکتی/.test(raw) ||
+      (/register/.test(t) && !hasNoRegister) ||
+      (/_samsung_|\*samsung\*/i.test(raw) && !hasNoRegister)) &&
+    !hasNoRegister;
+
+  if (isRegisteredList) return "skip-registered";
+
+  // آیفون بدون رجیستر / Not ZAA|CH
   if (hasIphone && (hasNoRegister || hasNotRegion)) return "iphone-noreg";
 
-  // سامسونگ/اندروید بدون رجیستر
-  if (
-    hasNoRegister &&
-    (/s2[4-9]|s26|galaxy|📲\s*s\d/i.test(raw) || /ultra|a\d{2}\b/.test(t))
-  ) {
-    return "android-noreg";
-  }
+  // اندروید بدون رجیستر (جدا از موبایل همراه‌تل)
+  if (hasAndroidPhone && hasNoRegister) return "android-noreg";
 
-  // لیست کامل سامسونگ رجیستری (بدون No register) → رد
-  if (
-    (/_samsung_|\*samsung\*/i.test(raw) ||
-      (/samsung/.test(t) && /1405\//.test(raw))) &&
-    !hasNoRegister &&
-    !hasNotRegion
-  ) {
+  // لیست سامسونگ/اندروید بدون No register
+  if (hasAndroidPhone && !hasNoRegister && !hasNotRegion && !/tab\b/i.test(raw)) {
     return "skip-registered";
-  }
-
-  // گوشی‌های سری A/S بدون ذکر noreg در لیست رجیستری
-  if (
-    /📲\s*(s2[4-9]|a\d{2}|a07|a17|a26|a36|a37|a56)/i.test(raw) &&
-    !hasNoRegister &&
-    !hasNotRegion &&
-    !/tab\b/i.test(raw)
-  ) {
-    // اگر فقط مدل noreg تکی با Not ZAA نبود
-    if (!hasIphone) return "skip-registered";
   }
 
   return "skip";
@@ -138,10 +128,10 @@ export function toseehKindTitle(kind: ToseehListKind): string {
   }
 }
 
-/** نگاشت به scope سایت */
 export type SiteScope =
   | "mobile"
   | "iphone-noreg"
+  | "android-noreg"
   | "tablet"
   | "ipad"
   | "xiaomi-pad"
@@ -155,7 +145,7 @@ export function toseehKindToSiteScope(kind: ToseehListKind): SiteScope | null {
     case "iphone-noreg":
       return "iphone-noreg";
     case "android-noreg":
-      return "mobile";
+      return "android-noreg";
     case "ipad":
       return "ipad";
     case "xiaomi-pad":

@@ -28,6 +28,11 @@ const PRODUCT_MENU = [
     label: "آیفون بدون رجیستری",
     cat: "iphone-noreg",
   },
+  {
+    href: "/?cat=android-noreg",
+    label: "اندروید بدون رجیستری",
+    cat: "android-noreg",
+  },
   { href: "/?cat=ipad", label: "آیپد", cat: "ipad" },
   { href: "/?cat=xiaomi-pad", label: "تبلت شیائومی", cat: "xiaomi-pad" },
   { href: "/?cat=console", label: "کنسول بازی", cat: "console" },

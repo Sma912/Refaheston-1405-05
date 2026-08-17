@@ -20,6 +20,8 @@ export function markupPercentForScope(
   switch (scope) {
     case "iphone-noreg":
       return settings.markup_percent_iphone_noreg;
+    case "android-noreg":
+      return settings.markup_percent_iphone_noreg;
     case "tablet":
       return settings.markup_percent_tablet;
     case "ipad":

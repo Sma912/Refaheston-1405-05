@@ -21,6 +21,7 @@ import {
 const ENABLED_CATS = new Set([
   "mobile",
   "iphone-noreg",
+  "android-noreg",
   "ipad",
   "xiaomi-pad",
   "console",
@@ -65,6 +66,7 @@ function inCategory(product: Product, category: string): boolean {
   const console_ = slug === "console" || isConsoleProduct(product);
   const laptop = slug === "laptop" || isLaptopProduct(product);
   if (category === "iphone-noreg") return noreg || slug === "iphone-noreg";
+  if (category === "android-noreg") return slug === "android-noreg";
   if (category === "ipad") return ipad && !noreg;
   if (category === "xiaomi-pad") return xiaomiPad && !noreg;
   if (category === "tablet") return slug === "tablet";
@@ -74,15 +76,12 @@ function inCategory(product: Product, category: string): boolean {
   if (category === "audio") return slug === "audio";
   if (category === "mobile")
     return (
-      (slug === "mobile" || !slug) &&
+      slug === "mobile" &&
       !noreg &&
       !ipad &&
       !xiaomiPad &&
       !console_ &&
-      !laptop &&
-      slug !== "accessory" &&
-      slug !== "audio" &&
-      slug !== "tablet"
+      !laptop
     );
   return false;
 }
