@@ -44,28 +44,78 @@ function modelKey(p: Product) {
   return `${p.brand}|${p.model}`.toLowerCase();
 }
 
-/** تشخیص تب «آیفون بدون رجیستری» در کاتالوگ فروشگاه */
+/** آیا مدل شبیه آیفون است (نه ساعت/ایرپاد و …) */
+function looksLikeIphoneModel(model?: string | null): boolean {
+  const m = model?.trim() ?? "";
+  if (!m) return false;
+  if (/watch|airpods|ipad|macbook|pencil|pen\b|ساعت|ایرپاد/i.test(m)) {
+    return false;
+  }
+  return /iphone|آیفون|\b1[3-9]\s*(pro|plus|normal|-)?/i.test(m);
+}
+
+/**
+ * تشخیص محصولات «آیفون بدون رجیستری» برای تب کاتالوگ.
+ * مارک‌داون کانال یا «بدون رجیستری» اندروید را شامل نکن.
+ */
 export function isNoregCatalogProduct(product: {
   origin?: string | null;
   category_id?: string | null;
+  category?: { slug?: string | null } | null;
   description?: string | null;
+  model?: string | null;
+  brand?: string | null;
 }): boolean {
-  if (isNonRegistryOrigin(product.origin)) return true;
-  if (product.category_id === DEMO_CAT_IPHONE_NOREG) return true;
+  const slug = product.category?.slug ?? null;
+  if (slug === "android-noreg" || slug === "accessory" || slug === "audio") {
+    return false;
+  }
+  if (slug === "iphone-noreg" || product.category_id === DEMO_CAT_IPHONE_NOREG) {
+    return true;
+  }
+  if (isNonRegistryOrigin(product.origin) && looksLikeIphoneModel(product.model)) {
+    return true;
+  }
   const d = product.description?.trim() ?? "";
-  if (d.includes("بدون کد ریجستری") || d.includes("بدون رجیستری")) return true;
+  if (d.includes("آیفون بدون")) return true;
+  // فقط اگر مدل واقعاً آیفون است — نه هر متن «بدون رجیستری»
+  if (
+    (d.includes("بدون کد ریجستری") || /آیفون.*بدون\s*رجیستر/i.test(d)) &&
+    looksLikeIphoneModel(product.model)
+  ) {
+    return true;
+  }
+  const m = product.model?.trim() ?? "";
+  if (/no\s*register|بدون\s*ریجستر|بدون\s*رجیستر/i.test(m) && looksLikeIphoneModel(m)) {
+    return true;
+  }
+  return false;
+}
+
+/** مدل‌های مارک‌داون/تیتر کانال که نباید در موبایل همراه‌تل دیده شوند */
+export function isChannelJunkModel(model?: string | null): boolean {
+  const m = model?.trim() ?? "";
+  if (!m) return false;
+  if (/^\*?_.*_\*?$/.test(m) || /\*_.+_\*/.test(m)) return true;
+  if (/no\s*register/i.test(m) && !/\d+\s*GB/i.test(m)) return true;
   return false;
 }
 
 function inCategory(product: Product, category: string): boolean {
   const slug = product.category?.slug ?? null;
   const noreg = isNoregCatalogProduct(product);
+  const junk = isChannelJunkModel(product.model);
   const ipad =
     slug === "ipad" || (isIpadProduct(product) && slug !== "xiaomi-pad");
   const xiaomiPad = slug === "xiaomi-pad" || isXiaomiPadProduct(product);
   const console_ = slug === "console" || isConsoleProduct(product);
   const laptop = slug === "laptop" || isLaptopProduct(product);
-  if (category === "iphone-noreg") return noreg || slug === "iphone-noreg";
+  if (category === "iphone-noreg") {
+    if (slug === "android-noreg" || slug === "accessory" || slug === "audio") {
+      return false;
+    }
+    return slug === "iphone-noreg" || noreg;
+  }
   if (category === "android-noreg") return slug === "android-noreg";
   if (category === "ipad") return ipad && !noreg;
   if (category === "xiaomi-pad") return xiaomiPad && !noreg;
@@ -78,6 +128,7 @@ function inCategory(product: Product, category: string): boolean {
     return (
       slug === "mobile" &&
       !noreg &&
+      !junk &&
       !ipad &&
       !xiaomiPad &&
       !console_ &&

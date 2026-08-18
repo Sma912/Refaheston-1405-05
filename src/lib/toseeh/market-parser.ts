@@ -42,6 +42,8 @@ function cleanColorName(raw: string): string {
 
 function cleanModelName(raw: string): string {
   return stripDecoEmoji(raw)
+    .replace(/^\*+_?|_?\*+$/g, "")
+    .replace(/^_+|_+$/g, "")
     .replace(/wifi/gi, "WiFi")
     .replace(/\s+/g, " ")
     .trim();
@@ -112,22 +114,30 @@ export function parseMarketList(raw: string): MarketProduct[] {
     const lower = line.toLowerCase();
 
     const compact = clean.replace(/[^a-z0-9\s]/gi, " ").replace(/\s+/g, " ").trim();
+    const isNoregSection =
+      /no\s*register|بدون\s*ریجستر|بدون\s*رجیستر/i.test(clean) &&
+      !/→|->|👉/.test(line) &&
+      !/\(\s*\d+/.test(clean);
+
     const isSectionHeader =
       /^(toseeh\b.*|playstation|tab\s*xiaomi(\s*pad)?|samsung|jbl|harman.*)$/i.test(
         compact
       ) ||
       (/^ipad$/i.test(compact) && !/\d/.test(clean)) ||
       /accessories\s*list/i.test(compact) ||
-      /^macbook$/i.test(compact);
+      /^macbook$/i.test(compact) ||
+      isNoregSection;
 
     if (isSectionHeader) {
       if (/play|ps5|ps4|sony/.test(lower)) currentBrand = "Sony";
-      else if (/ipad|apple|macbook|airpods|watch/.test(lower) || //.test(line))
+      else if (/ipad|apple|macbook|airpods|watch|iphone/.test(lower) || //.test(line))
         currentBrand = "Apple";
       else if (/xiaomi|redmi|pad/.test(lower)) currentBrand = "Xiaomi";
       else if (/samsung|tab\s*s/.test(lower)) currentBrand = "Samsung";
       else if (/jbl/.test(lower)) currentBrand = "JBL";
       else if (/harman|kardon/.test(lower)) currentBrand = "Harman/Kardon";
+      // تیتر «No register» مدل فروش نیست
+      if (isNoregSection) currentModel = "";
       continue;
     }
 
@@ -142,8 +152,9 @@ export function parseMarketList(raw: string): MarketProduct[] {
         line.replace(/^[\s📲📱🎮💻🎧⌚️🔊🖊️🔌🔋]+/u, "").trim()
       );
       if (/^(09|\+98|\d{11})/.test(modelLine)) continue;
-      if (/no\s*register|بدون\s*ریجستر|بدون\s*رجیستر/i.test(modelLine) && !/\d/.test(modelLine)) {
+      if (/no\s*register|بدون\s*ریجستر|بدون\s*رجیستر/i.test(modelLine)) {
         currentBrand = detectBrand(modelLine) || currentBrand || "Apple";
+        currentModel = "";
         continue;
       }
       currentModel = normalizeAppleModel(modelLine);
@@ -168,8 +179,9 @@ export function parseMarketList(raw: string): MarketProduct[] {
       /dual\s*sen[sc]e/.test(lower) ||
       /party\s*box|boom\s*box|soundstick|aura|onyx/.test(lower)
     ) {
-      if (/no\s*register|بدون\s*ریجستر|بدون\s*رجیستر/i.test(lower) && !/\d{2,}/.test(clean)) {
-        currentBrand = "Apple";
+      if (/no\s*register|بدون\s*ریجستر|بدون\s*رجیستر/i.test(lower)) {
+        currentBrand = detectBrand(clean) || currentBrand || "Apple";
+        currentModel = "";
         continue;
       }
       if (

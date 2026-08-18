@@ -223,3 +223,22 @@ export function buildCustomerTimeoutCancelledMessage(
     "در صورت تمایل می‌توانید مجدداً سفارش ثبت کنید.",
   ].join("\n");
 }
+
+export function buildCustomerStatusRevertedMessage(
+  ctx: OrderMessageContext,
+  statusLabel: string,
+  reason?: string | null
+): string {
+  const lines = [
+    "↩️ به‌روزرسانی وضعیت سفارش — رفاهستون",
+    "",
+    `سفارش #${shortId(ctx.orderId)}`,
+    `وضعیت جدید: ${statusLabel}`,
+  ];
+  if (reason?.trim()) {
+    lines.push("", reason.trim());
+  } else {
+    lines.push("", "ادمین فرایند را به این مرحله برگرداند؛ ادامه از همین‌جا پیگیری می‌شود.");
+  }
+  return lines.join("\n");
+}

@@ -8,6 +8,7 @@ import {
   buildCustomerPaymentConfirmedMessage,
   buildCustomerPreparingMessage,
   buildCustomerShippedMessage,
+  buildCustomerStatusRevertedMessage,
   buildCustomerTimeoutCancelledMessage,
   paymentCopyText,
   type OrderMessageContext,
@@ -21,6 +22,11 @@ import {
 } from "@/lib/orders/note-templates";
 import { toMoney } from "@/lib/orders/totals";
 import { getStoreSettingsAdmin } from "@/lib/store/settings";
+import {
+  ALL_ORDER_STATUSES,
+  ORDER_STATUS_LABELS,
+  patchForRevertToStatus,
+} from "@/lib/utils/order-status";
 import type { Order, OrderItem, OrderStatus } from "@/types/database";
 
 export type OrderAction =
@@ -30,7 +36,8 @@ export type OrderAction =
   | "mark_shipped"
   | "mark_delivered"
   | "cancel"
-  | "send_note";
+  | "send_note"
+  | "revert_status";
 
 function toItems(rows: OrderItem[]): OrderMessageItem[] {
   return rows.map((row) => ({
@@ -155,6 +162,8 @@ export async function runOrderAction(params: {
   paymentSheba?: string | null;
   paymentCardNumber?: string | null;
   paymentCardHolder?: string | null;
+  /** هدف برای revert_status */
+  targetStatus?: OrderStatus | null;
   notifyCustomer?: boolean;
   adminUserId?: string | null;
 }) {
@@ -170,6 +179,7 @@ export async function runOrderAction(params: {
     paymentSheba,
     paymentCardNumber,
     paymentCardHolder,
+    targetStatus,
     notifyCustomer = true,
     adminUserId = null,
   } = params;
@@ -345,6 +355,19 @@ export async function runOrderAction(params: {
       patch.status = nextStatus;
       break;
     }
+    case "revert_status": {
+      const target = targetStatus;
+      if (!target || !ALL_ORDER_STATUSES.includes(target)) {
+        throw new Error("مرحله مقصد معتبر نیست");
+      }
+      if (target === order.status) {
+        throw new Error("سفارش همین الان در این مرحله است");
+      }
+      const revertPatch = patchForRevertToStatus(target);
+      Object.assign(patch, revertPatch);
+      nextStatus = target;
+      break;
+    }
     default:
       throw new Error("عملیات نامعتبر است");
   }
@@ -447,7 +470,25 @@ export async function runOrderAction(params: {
       historyBodies.push(
         `سفارش لغو شد${noteBody ? ` — ${noteBody}` : ""}`
       );
+    } else if (action === "revert_status") {
+      const label = ORDER_STATUS_LABELS[updatedOrder.status];
+      baleResult = await sendBaleTextMessage({
+        phone: updatedOrder.contact_phone,
+        text: buildCustomerStatusRevertedMessage(ctx, label, noteBody),
+        requestId: `revert-${orderId}-${updatedOrder.status}-${Date.now()}`,
+      });
+      historyBodies.push(
+        `برگرداندن وضعیت از «${ORDER_STATUS_LABELS[order.status]}» به «${label}»${
+          noteBody ? ` — ${noteBody}` : ""
+        }`
+      );
     }
+  } else if (action === "revert_status") {
+    historyBodies.push(
+      `برگرداندن وضعیت از «${ORDER_STATUS_LABELS[order.status]}» به «${ORDER_STATUS_LABELS[updatedOrder.status]}» (بدون پیام بله)${
+        noteBody ? ` — ${noteBody}` : ""
+      }`
+    );
   } else if (noteBody) {
     historyBodies.push(noteBody);
   }

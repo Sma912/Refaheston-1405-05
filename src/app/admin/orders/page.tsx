@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -8,7 +8,7 @@ import { isDemoMode } from "@/lib/demo/config";
 import { useDemoStore } from "@/lib/demo/store";
 import { DEMO_USERS } from "@/lib/demo/data";
 import type { Order, OrderItem, OrderNote, OrderStatus } from "@/types/database";
-import { ALL_ORDER_STATUSES, ORDER_STATUS_LABELS } from "@/lib/utils/order-status";
+import { ALL_ORDER_STATUSES, ORDER_STATUS_LABELS, patchForRevertToStatus } from "@/lib/utils/order-status";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { OrderNotesHistory } from "@/components/orders/order-notes-history";
 import { DeadlineCountdown } from "@/components/orders/deadline-countdown";
@@ -40,7 +40,8 @@ type ActionKey =
   | "mark_shipped"
   | "mark_delivered"
   | "cancel"
-  | "send_note";
+  | "send_note"
+  | "revert_status";
 
 type AdminOrderRow = Order & {
   customer_name: string | null;
@@ -86,6 +87,10 @@ function AdminOrdersPage() {
   const [paymentCardNumber, setPaymentCardNumber] = useState("");
   const [paymentCardHolder, setPaymentCardHolder] = useState("");
   const [saving, setSaving] = useState(false);
+  const [revertTarget, setRevertTarget] = useState<OrderStatus | "">("");
+  const [notifyOnRevert, setNotifyOnRevert] = useState(true);
+  const [paymentDefaultsLoaded, setPaymentDefaultsLoaded] = useState(false);
+  const detailRef = useRef<HTMLDivElement | null>(null);
   const focusOrderId = searchParams.get("order");
 
   const defaultShipping = demo
@@ -189,11 +194,15 @@ function AdminOrdersPage() {
     );
     setPaymentRef(order.payment_ref ?? "");
     setTrackingNumber(order.tracking_number ?? "");
-    setPaymentSheba("");
-    setPaymentCardNumber("");
-    setPaymentCardHolder("");
+    setRevertTarget("");
+    setNotifyOnRevert(true);
     setItems([]);
     setHistory([]);
+
+    // پنل جزئیات بالای لیست است — سریع اسکرول کن تا دیده شود
+    requestAnimationFrame(() => {
+      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
 
     if (demo) {
       setPaymentSheba(demoSettings.payment_sheba ?? "");
@@ -202,27 +211,30 @@ function AdminOrdersPage() {
       return;
     }
 
-    try {
-      const settingsRes = await fetch("/api/admin/settings");
-      const settingsPayload = (await settingsRes.json()) as {
-        settings?: {
-          payment_sheba?: string;
-          payment_card_number?: string;
-          payment_card_holder?: string;
-          shipping_cost?: number;
+    if (!paymentDefaultsLoaded) {
+      try {
+        const settingsRes = await fetch("/api/admin/settings");
+        const settingsPayload = (await settingsRes.json()) as {
+          settings?: {
+            payment_sheba?: string;
+            payment_card_number?: string;
+            payment_card_holder?: string;
+            shipping_cost?: number;
+          };
         };
-      };
-      const s = settingsPayload.settings;
-      if (s) {
-        setPaymentSheba(s.payment_sheba ?? "");
-        setPaymentCardNumber(s.payment_card_number ?? "");
-        setPaymentCardHolder(s.payment_card_holder ?? "");
-        if (order.shipping_amount == null && s.shipping_cost != null) {
-          setShippingAmount(String(s.shipping_cost));
+        const s = settingsPayload.settings;
+        if (s) {
+          setPaymentSheba(s.payment_sheba ?? "");
+          setPaymentCardNumber(s.payment_card_number ?? "");
+          setPaymentCardHolder(s.payment_card_holder ?? "");
+          if (order.shipping_amount == null && s.shipping_cost != null) {
+            setShippingAmount(String(s.shipping_cost));
+          }
+          setPaymentDefaultsLoaded(true);
         }
+      } catch {
+        // keep empty; admin can type manually
       }
-    } catch {
-      // keep empty; admin can type manually
     }
 
     const supabase = createClient();
@@ -265,6 +277,19 @@ function AdminOrdersPage() {
     const amount = Number(confirmedAmount.replace(/[^\d]/g, "")) || null;
     const ship = Number(shippingAmount.replace(/[^\d]/g, ""));
     const shipValue = Number.isFinite(ship) ? ship : null;
+
+    if (action === "revert_status") {
+      if (!revertTarget) {
+        toast.error("مرحله مقصد را انتخاب کنید");
+        setSaving(false);
+        return;
+      }
+      if (revertTarget === selected.status) {
+        toast.error("سفارش همین الان در این مرحله است");
+        setSaving(false);
+        return;
+      }
+    }
 
     if (demo) {
       const now = new Date().toISOString();
@@ -322,9 +347,15 @@ function AdminOrdersPage() {
         patch.status = "delivered";
       } else if (action === "cancel") {
         patch.status = "cancelled";
+      } else if (action === "revert_status" && revertTarget) {
+        Object.assign(patch, patchForRevertToStatus(revertTarget));
       }
       updateOrder(selected.id, patch);
-      toast.success("سفارش به‌روزرسانی شد (دمو — بدون بله)");
+      toast.success(
+        action === "revert_status"
+          ? "وضعیت به مرحله انتخاب‌شده برگشت (دمو)"
+          : "سفارش به‌روزرسانی شد (دمو — بدون بله)"
+      );
       setSelected(null);
       setSaving(false);
       return;
@@ -346,6 +377,9 @@ function AdminOrdersPage() {
           paymentSheba: paymentSheba.trim() || null,
           paymentCardNumber: paymentCardNumber.trim() || null,
           paymentCardHolder: paymentCardHolder.trim() || null,
+          targetStatus: action === "revert_status" ? revertTarget : null,
+          notifyCustomer:
+            action === "revert_status" ? notifyOnRevert : true,
         }),
       });
       const payload = (await res.json()) as {
@@ -365,7 +399,13 @@ function AdminOrdersPage() {
           load();
         }
       } else {
-        toast.success("انجام شد و پیام بله ارسال شد");
+        toast.success(
+          action === "revert_status"
+            ? notifyOnRevert
+              ? "مرحله عوض شد و به مشتری در بله اطلاع داده شد"
+              : "مرحله عوض شد (بدون پیام بله)"
+            : "انجام شد و پیام بله ارسال شد"
+        );
         if (action === "send_note") {
           openOrder({ ...selected, notes: notes.trim() || selected.notes });
           load();
@@ -417,52 +457,11 @@ function AdminOrdersPage() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>شناسه</TableHead>
-              <TableHead>مشتری</TableHead>
-              <TableHead>تاریخ</TableHead>
-              <TableHead>مبلغ</TableHead>
-              <TableHead>وضعیت</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {orders.map((o) => (
-              <TableRow key={o.id}>
-                <TableCell dir="ltr">#{o.id.slice(0, 8)}</TableCell>
-                <TableCell>
-                  <div className="text-sm font-medium">
-                    {o.customer_name || "بدون نام"}
-                  </div>
-                  <div className="text-xs text-slate-500" dir="ltr">
-                    {o.contact_phone}
-                  </div>
-                </TableCell>
-                <TableCell>{formatJalaliDate(o.created_at, true)}</TableCell>
-                <TableCell>
-                  {formatPriceToman(
-                    orderPayable(o, defaultShipping)
-                  )}
-                </TableCell>
-                <TableCell>
-                  <OrderStatusBadge status={o.status} />
-                </TableCell>
-                <TableCell>
-                  <Button size="sm" variant="outline" onClick={() => openOrder(o)}>
-                    مدیریت
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
       {selected && (
-        <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+        <div
+          ref={detailRef}
+          className="scroll-mt-24 space-y-4 rounded-2xl border-2 border-[var(--brand-blue)]/30 bg-white p-5 shadow-md shadow-blue-900/5"
+        >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="font-semibold" dir="ltr">
@@ -652,6 +651,51 @@ function AdminOrdersPage() {
             <OrderNotesHistory notes={history} />
           </div>
 
+          <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+            <h3 className="font-semibold text-amber-950">
+              برگرداندن به مرحله دلخواه
+            </h3>
+            <p className="text-sm text-amber-900/80">
+              اگر مبلغ/فاکتور/مشخصات اشتباه ارسال شده، سفارش را به مرحلهٔ قبل
+              برگردانید و دوباره از همان‌جا ادامه دهید. فیلدهای مراحل بعدی
+              (پیگیری پرداخت، کد رهگیری، مهلت‌ها و …) در صورت نیاز پاک می‌شوند.
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="flex-1 space-y-1 text-sm">
+                <span className="text-slate-700">مرحله مقصد</span>
+                <select
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                  value={revertTarget}
+                  onChange={(e) =>
+                    setRevertTarget((e.target.value || "") as OrderStatus | "")
+                  }
+                >
+                  <option value="">انتخاب کنید…</option>
+                  {ALL_ORDER_STATUSES.filter((s) => s !== status).map((s) => (
+                    <option key={s} value={s}>
+                      {ORDER_STATUS_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 pb-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={notifyOnRevert}
+                  onChange={(e) => setNotifyOnRevert(e.target.checked)}
+                />
+                اطلاع به مشتری در بله
+              </label>
+              <Button
+                variant="secondary"
+                disabled={saving || !revertTarget}
+                onClick={() => runAction("revert_status")}
+              >
+                برگرداندن به این مرحله
+              </Button>
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-2">
             {(status === "pending_confirmation" ||
               status === "awaiting_payment") && (
@@ -714,6 +758,57 @@ function AdminOrdersPage() {
           </div>
         </div>
       )}
+
+      <div className="rounded-2xl border border-slate-200 bg-white">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>شناسه</TableHead>
+              <TableHead>مشتری</TableHead>
+              <TableHead>تاریخ</TableHead>
+              <TableHead>مبلغ</TableHead>
+              <TableHead>وضعیت</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {orders.map((o) => (
+              <TableRow
+                key={o.id}
+                className={
+                  selected?.id === o.id ? "bg-blue-50/70" : undefined
+                }
+              >
+                <TableCell dir="ltr">#{o.id.slice(0, 8)}</TableCell>
+                <TableCell>
+                  <div className="text-sm font-medium">
+                    {o.customer_name || "بدون نام"}
+                  </div>
+                  <div className="text-xs text-slate-500" dir="ltr">
+                    {o.contact_phone}
+                  </div>
+                </TableCell>
+                <TableCell>{formatJalaliDate(o.created_at, true)}</TableCell>
+                <TableCell>
+                  {formatPriceToman(orderPayable(o, defaultShipping))}
+                </TableCell>
+                <TableCell>
+                  <OrderStatusBadge status={o.status} />
+                </TableCell>
+                <TableCell>
+                  <Button
+                    size="sm"
+                    variant={selected?.id === o.id ? "default" : "outline"}
+                    onClick={() => openOrder(o)}
+                  >
+                    مدیریت
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

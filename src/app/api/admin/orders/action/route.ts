@@ -6,6 +6,7 @@ import {
   runOrderAction,
   type OrderAction,
 } from "@/lib/bale/order-flow";
+import type { OrderStatus } from "@/types/database";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ const ACTIONS = new Set<OrderAction>([
   "mark_delivered",
   "cancel",
   "send_note",
+  "revert_status",
 ]);
 
 export async function POST(req: Request) {
@@ -48,6 +50,7 @@ export async function POST(req: Request) {
       paymentSheba?: string | null;
       paymentCardNumber?: string | null;
       paymentCardHolder?: string | null;
+      targetStatus?: string | null;
       notifyCustomer?: boolean;
     };
 
@@ -92,6 +95,7 @@ export async function POST(req: Request) {
       paymentSheba: body.paymentSheba,
       paymentCardNumber: body.paymentCardNumber,
       paymentCardHolder: body.paymentCardHolder,
+      targetStatus: (body.targetStatus as OrderStatus | null | undefined) ?? null,
       notifyCustomer: body.notifyCustomer !== false,
       adminUserId: user.id,
     });

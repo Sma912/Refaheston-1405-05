@@ -26,3 +26,50 @@ export const ORDER_SUCCESS_MESSAGE =
 export const ALL_ORDER_STATUSES = Object.keys(
   ORDER_STATUS_LABELS
 ) as OrderStatus[];
+
+/** ترتیب خطی فرایند (به‌جز لغو) */
+export const ORDER_PIPELINE: OrderStatus[] = [
+  "pending_confirmation",
+  "awaiting_payment",
+  "paid",
+  "preparing",
+  "shipped",
+  "delivered",
+];
+
+export function orderPipelineIndex(status: OrderStatus): number {
+  return ORDER_PIPELINE.indexOf(status);
+}
+
+/**
+ * فیلدهایی که با برگشت به یک مرحله باید پاک/بازنشانی شوند
+ * تا ادمین بتواند دوباره از همان نقطه ادامه دهد.
+ */
+export function patchForRevertToStatus(target: OrderStatus): Record<string, unknown> {
+  const patch: Record<string, unknown> = { status: target };
+  const idx = orderPipelineIndex(target);
+
+  // قبل از پرداخت تأییدشده
+  if (idx < orderPipelineIndex("paid") || target === "cancelled") {
+    patch.payment_ref = null;
+    patch.payment_confirmed_at = null;
+  }
+  // قبل از ارسال
+  if (idx < orderPipelineIndex("shipped") || target === "cancelled") {
+    patch.tracking_number = null;
+    patch.shipped_at = null;
+  }
+  // برگشت به قبل از صدور فاکتور
+  if (idx <= orderPipelineIndex("pending_confirmation") || target === "cancelled") {
+    patch.invoice_sent_at = null;
+    patch.payment_deadline_at = null;
+    patch.admin_confirm_deadline_at = null;
+  }
+  // برگشت به awaiting_payment: مهلت‌ها را خالی کن تا با صدور مجدد فاکتور تازه شوند
+  if (target === "awaiting_payment") {
+    patch.payment_deadline_at = null;
+    patch.admin_confirm_deadline_at = null;
+  }
+
+  return patch;
+}

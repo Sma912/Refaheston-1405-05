@@ -10,7 +10,7 @@ import {
   type ToseehListKind,
 } from "@/lib/toseeh/list-kinds";
 import { parseMarketList } from "@/lib/toseeh/market-parser";
-import { bumpToseehChannelPrices } from "@/lib/toseeh/price-bump";
+import { bumpToseehChannelPrices, stripToseehSourceBranding } from "@/lib/toseeh/price-bump";
 import { callBaleBotApi } from "@/lib/bale/bot-api";
 
 function splitMessage(text: string, maxLen = 4000): string[] {
@@ -156,11 +156,13 @@ export async function syncToseehFromTelegram(options?: {
         scope: scope as ProductListScope,
         applyMarkup: true,
         sourceLabel: `toseeh:${kind}`,
+        deactivateMissing: true,
       });
 
-      // برای بله: همان فرمت کانال با قیمت × درصد
+      // برای بله: فرمت کانال با قیمت × درصد — بدون برند منبع
       const retailText =
-        `🏪 رفاهستون | ${title}\n` + bumpToseehChannelPrices(body, percent);
+        `🏪 رفاهستون | ${title}\n` +
+        bumpToseehChannelPrices(stripToseehSourceBranding(body), percent);
 
       let baleChunks = 0;
       if (postToBale) {

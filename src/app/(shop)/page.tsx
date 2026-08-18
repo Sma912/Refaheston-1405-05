@@ -7,6 +7,9 @@ import { ResalatLoanPromoBanner } from "@/components/home/resalat-loan-promo-ban
 import type { Product } from "@/types/database";
 import Link from "next/link";
 
+/** کاتالوگ هر ۶۰ ثانیه تازه شود — بدون SSR کامل در هر کلیک */
+export const revalidate = 60;
+
 export default async function HomePage() {
   let products: Product[] = [];
 

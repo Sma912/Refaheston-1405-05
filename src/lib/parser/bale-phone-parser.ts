@@ -34,6 +34,7 @@ export function isNonRegistryOrigin(origin: string | null | undefined): boolean 
   if (/^not\s*ch\s*\/?\s*a?$/.test(n)) return true;
   if (n.includes("non active") || n.includes("non-active")) return true;
   if (n.includes("بدون رجیستر") || n.includes("بدون کد")) return true;
+  if (n.includes("no register") || n === "noreg" || n === "no-reg") return true;
   // Avoid matching unrelated phrases like "not china"
   if (/\bnot\s+zaa?\b/.test(n) || /\bnot\s+za\/a\b/.test(n)) return true;
   if (/\bnot\s+ch\b/.test(n) || /\bnot\s+ch\/a\b/.test(n)) return true;

@@ -3,6 +3,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import hamrahtelCatalog from "./hamrahtel-catalog.json";
 import extraCatalog from "./extra-catalog.json";
+import { resolveDigikalaProductImage, resolveTorobProductImage } from "./digikala";
 
 const IMAGE_DIR = path.join(process.cwd(), "public", "product-images");
 const INDEX_PATH = path.join(IMAGE_DIR, "index.json");
@@ -18,13 +19,54 @@ function isEphemeralFs() {
 
 const remoteUrlCache = new Map<string, string>();
 
+/** Hamrahtel core-api often presents a cert chain Node rejects; images CDN is fine. */
+async function fetchHamrahtelApi(body: string): Promise<Response> {
+  const https = await import("https");
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      HAMRAHTEL_API,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent": "Mozilla/5.0",
+          Accept: "application/json",
+          "Content-Length": Buffer.byteLength(body),
+        },
+        timeout: FETCH_TIMEOUT_MS,
+        rejectUnauthorized: false,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c) => chunks.push(c));
+        res.on("end", () => {
+          const buf = Buffer.concat(chunks);
+          resolve(
+            new Response(buf, {
+              status: res.statusCode ?? 500,
+              headers: res.headers as HeadersInit,
+            })
+          );
+        });
+      }
+    );
+    req.on("error", reject);
+    req.on("timeout", () => {
+      req.destroy();
+      reject(new Error("hamrahtel timeout"));
+    });
+    req.write(body);
+    req.end();
+  });
+}
+
 export type ImageCacheEntry = {
   key: string;
   brand: string;
   model: string;
   color?: string | null;
   file: string;
-  source: "hamrahtel" | "placeholder";
+  source: "hamrahtel" | "digikala" | "torob" | "placeholder";
   sourceUrl?: string;
   createdAt: string;
 };
@@ -433,15 +475,9 @@ async function selectHamrahtelImageLive(
   const searches = [model, searchQuery(brand, model)].filter(Boolean);
   for (const search of searches) {
     try {
-      const res = await fetchWithTimeout(HAMRAHTEL_API, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ query, variables: { search } }),
-      });
+      const res = await fetchHamrahtelApi(
+        JSON.stringify({ query, variables: { search } })
+      );
       if (!res.ok) continue;
       const data = (await res.json()) as {
         data?: {
@@ -491,6 +527,75 @@ async function selectHamrahtelImageLive(
   return null;
 }
 
+/** Best remote URL without requiring a successful binary download (Vercel-safe). */
+async function selectHamrahtelImageUrl(
+  brand: string,
+  model: string
+): Promise<string | null> {
+  const fromCatalog = findCatalogImage(model);
+  if (fromCatalog?.image && !isPromoImageUrl(fromCatalog.image)) {
+    const candidates = collectCandidateUrls({
+      thumbnail: { url: fromCatalog.image },
+      media: [{ url: fromCatalog.image, type: "IMAGE" }],
+    });
+    const clean = candidates.find((u) => !isPromoImageUrl(u));
+    if (clean) return clean.replace(/^http:/, "https:");
+  }
+
+  // URL-only GraphQL lookup (no image download — TLS to media often fails abroad).
+  const query = `
+    query($search: String!) {
+      publicProducts(first: 8, channel: "${HAMRAHTEL_CHANNEL}", search: $search) {
+        edges {
+          node {
+            name
+            thumbnail(size: 1024) { url }
+            media { url type }
+          }
+        }
+      }
+    }
+  `;
+  for (const search of [model, searchQuery(brand, model)].filter(Boolean)) {
+    try {
+      const res = await fetchHamrahtelApi(
+        JSON.stringify({ query, variables: { search } })
+      );
+      if (!res.ok) continue;
+      const data = (await res.json()) as {
+        data?: {
+          publicProducts?: {
+            edges?: {
+              node: {
+                name: string;
+                thumbnail?: { url?: string } | null;
+                media?: { url?: string; type?: string }[] | null;
+              };
+            }[];
+          };
+        };
+      };
+      let best: { score: number; url: string } | null = null;
+      for (const edge of data.data?.publicProducts?.edges ?? []) {
+        if (!modelNameCompatible(model, edge.node.name)) continue;
+        if (/\+/.test(edge.node.name) && !/بیمه|insurance/i.test(edge.node.name)) {
+          continue;
+        }
+        const score = matchScore(model, edge.node.name);
+        const urls = collectCandidateUrls(edge.node).filter((u) => !isPromoImageUrl(u));
+        if (!urls.length || score < 0.7) continue;
+        if (!best || score > best.score) {
+          best = { score, url: urls[0].replace(/^http:/, "https:") };
+        }
+      }
+      if (best) return best.url;
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
 async function selectHamrahtelImage(
   brand: string,
   model: string
@@ -506,6 +611,20 @@ async function selectHamrahtelImage(
   }
   // Catalog promo thumbs (Honor +بیمه etc.) → pick clean gallery image live
   return selectHamrahtelImageLive(brand, model);
+}
+
+/** Digikala (preferred reference) → Hamrahtel CDN → Torob */
+async function selectAnyRemoteImageUrl(
+  brand: string,
+  model: string
+): Promise<{ url: string; source: "hamrahtel" | "digikala" | "torob" } | null> {
+  const digi = await resolveDigikalaProductImage(brand, model).catch(() => null);
+  if (digi) return { url: digi, source: "digikala" };
+  const ham = await selectHamrahtelImageUrl(brand, model);
+  if (ham) return { url: ham, source: "hamrahtel" };
+  const torob = await resolveTorobProductImage(brand, model).catch(() => null);
+  if (torob) return { url: torob, source: "torob" };
+  return null;
 }
 
 async function ensurePlaceholder(brand: string, model: string, color?: string | null) {
@@ -525,14 +644,29 @@ async function tryUpgradeToPhoto(
 ) {
   try {
     const selected = await selectHamrahtelImage(brand, model);
-    if (!selected) return;
+    if (selected) {
+      const key = productImageKey(brand, model);
+      await saveImageBuffer(key, selected.buffer, selected.ext, {
+        brand,
+        model,
+        color: color ?? null,
+        source: "hamrahtel",
+        sourceUrl: selected.url,
+      });
+      return;
+    }
+    const digi = await resolveDigikalaProductImage(brand, model);
+    const url = digi || (await resolveTorobProductImage(brand, model));
+    if (!url) return;
+    const downloaded = await downloadImage(url);
+    if (!downloaded) return;
     const key = productImageKey(brand, model);
-    await saveImageBuffer(key, selected.buffer, selected.ext, {
+    await saveImageBuffer(key, downloaded.buffer, downloaded.ext, {
       brand,
       model,
       color: color ?? null,
-      source: "hamrahtel",
-      sourceUrl: selected.url,
+      source: digi ? "digikala" : "torob",
+      sourceUrl: url,
     });
   } catch {
     // ignore — keep placeholder
@@ -547,7 +681,7 @@ async function resolveOnce(input: {
   const { brand, model, color } = input;
   const key = productImageKey(brand, model);
 
-  // Serverless: never write under public/; return Hamrahtel CDN URL directly.
+  // Serverless: never write under public/; return remote CDN URL directly.
   if (isEphemeralFs()) {
     const cachedRemote = remoteUrlCache.get(key);
     if (cachedRemote) {
@@ -568,18 +702,9 @@ async function resolveOnce(input: {
     }
 
     try {
-      // Prefer catalog URL without downloading (faster on Vercel).
-      const fromCatalog = findCatalogImage(model);
-      let remoteUrl: string | null = null;
-      if (fromCatalog?.image && !isPromoImageUrl(fromCatalog.image)) {
-        remoteUrl = toDownloadableImageUrl(fromCatalog.image);
-      } else {
-        const selected = await selectHamrahtelImage(brand, model);
-        remoteUrl = selected?.url ?? null;
-      }
-
-      if (remoteUrl) {
-        remoteUrlCache.set(key, remoteUrl);
+      const remote = await selectAnyRemoteImageUrl(brand, model);
+      if (remote) {
+        remoteUrlCache.set(key, remote.url);
         return {
           entry: {
             key,
@@ -587,11 +712,11 @@ async function resolveOnce(input: {
             model,
             color: color ?? null,
             file: "",
-            source: "hamrahtel",
-            sourceUrl: remoteUrl,
+            source: remote.source,
+            sourceUrl: remote.url,
             createdAt: new Date().toISOString(),
           },
-          publicUrl: remoteUrl,
+          publicUrl: remote.url,
           cached: false,
         };
       }

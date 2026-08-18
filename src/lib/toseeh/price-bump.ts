@@ -17,3 +17,18 @@ export function bumpToseehChannelPrices(raw: string, percent: number): string {
     }
   );
 }
+
+/**
+ * حذف برند کانال منبع (توسعه همراه اعتماد) تا در بله فقط رفاهستون دیده شود.
+ */
+export function stripToseehSourceBranding(raw: string): string {
+  const brandLine =
+    /^\s*[*_~`]*\s*(?:TOSEEH\s+HAMRAH(?:\s+ETEMAD)?|توسعه\s*همراه(?:\s*اعتماد)?)\s*[*_~`]*\s*$/iu;
+
+  return String(raw || "")
+    .split(/\r?\n/)
+    .filter((line) => !brandLine.test(line.trim()))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trimStart();
+}

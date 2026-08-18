@@ -223,8 +223,11 @@ export async function syncProductsFromMarketProducts(input: {
   scope: ProductListScope;
   applyMarkup?: boolean;
   sourceLabel?: string;
+  /** پیش‌فرض true: کالاهای همان دسته که در لیست امروز نیستند غیرفعال می‌شوند */
+  deactivateMissing?: boolean;
 }): Promise<ProductSyncStats> {
   const stampedAt = new Date().toISOString();
+  const deactivateMissing = input.deactivateMissing !== false;
   if (!input.products.length) {
     return {
       parsed: 0,
@@ -254,9 +257,35 @@ export async function syncProductsFromMarketProducts(input: {
     input.scope === "iphone-noreg" ||
     input.scope === "android-noreg";
 
+  function sanitizeModel(raw: string): string {
+    return String(raw || "")
+      .replace(/^\*+_?|_?\*+$/g, "")
+      .replace(/^_+|_+$/g, "")
+      .replace(/[⌚️]/gu, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function belongsInScope(brand: string, model: string, scope: ProductListScope): boolean {
+    const m = `${brand} ${model}`.toLowerCase();
+    if (scope === "iphone-noreg") {
+      return /iphone|آیفون|\b1[3-9]\b/.test(m) && !/watch|airpods|ipad|macbook/.test(m);
+    }
+    if (scope === "android-noreg") {
+      return !/iphone|آیفون|watch|airpods|ipad/.test(m);
+    }
+    if (scope === "accessory") {
+      return /watch|airpods|pen|pencil|adaptor|adapter|cable/.test(m);
+    }
+    return true;
+  }
+
   const rows: SyncProductRow[] = [];
   for (const p of input.products) {
-    let model = p.model;
+    let model = sanitizeModel(p.model);
+    if (!model) continue;
+    if (!belongsInScope(p.brand, model, input.scope)) continue;
+
     let ram: string | null = null;
     let storage: string | null = null;
     const mem = model.match(/\((\d+)\s*\/\s*(\d+)\s*GB\)/i);
@@ -299,7 +328,7 @@ export async function syncProductsFromMarketProducts(input: {
       model,
       storage,
       ram,
-      color: p.color || "—",
+      color: sanitizeModel(p.color) || "—",
       price,
       origin,
       description:
@@ -315,13 +344,27 @@ export async function syncProductsFromMarketProducts(input: {
     });
   }
 
+  if (!rows.length) {
+    return {
+      parsed: 0,
+      upserted: 0,
+      inserted: 0,
+      updated: 0,
+      deactivated: 0,
+      scopes: [],
+      errors: ["پس از فیلتر، محصولی نماند"],
+      stampedAt,
+    };
+  }
+
   const admin = createAdminClient();
   const categoryIds = await resolveCategoryIds(admin);
+  const categoryId = categoryIds[input.scope] ?? "";
   const existingByKey = new Map<string, true>();
   const { data: existingRows } = await admin
     .from("products")
-    .select("brand,model,storage,ram,color,origin")
-    .eq("category_id", categoryIds[input.scope] ?? "");
+    .select("id,brand,model,storage,ram,color,origin,is_active")
+    .eq("category_id", categoryId);
   for (const e of existingRows ?? []) {
     existingByKey.set(productVariantKey(e as Product), true);
   }
@@ -330,7 +373,7 @@ export async function syncProductsFromMarketProducts(input: {
   let updated = 0;
   const byKey = new Map<string, ReturnType<typeof toUpsertPayload>>();
   for (const row of rows) {
-    byKey.set(row.key, toUpsertPayload(row, categoryIds[input.scope], stampedAt));
+    byKey.set(row.key, toUpsertPayload(row, categoryId, stampedAt));
   }
   for (const key of byKey.keys()) {
     if (existingByKey.has(key)) updated += 1;
@@ -346,6 +389,29 @@ export async function syncProductsFromMarketProducts(input: {
     if (error) throw new Error(error.message);
   }
 
+  let deactivated = 0;
+  if (deactivateMissing && categoryId) {
+    const keepKeys = new Set(byKey.keys());
+    const deactivateIds = (existingRows ?? [])
+      .filter((e) => {
+        const key = productVariantKey(e as Product);
+        return (e as { is_active?: boolean }).is_active !== false && !keepKeys.has(key);
+      })
+      .map((e) => (e as { id: string }).id)
+      .filter(Boolean);
+    if (deactivateIds.length > 0) {
+      for (let i = 0; i < deactivateIds.length; i += 100) {
+        const chunk = deactivateIds.slice(i, i + 100);
+        const { error } = await admin
+          .from("products")
+          .update({ is_active: false, updated_at: stampedAt })
+          .in("id", chunk);
+        if (error) throw new Error(error.message);
+      }
+      deactivated = deactivateIds.length;
+    }
+  }
+
   await admin.from("product_imports").insert({
     raw_text: input.sourceLabel || `market:${input.scope}`,
     parsed_count: rows.length,
@@ -357,7 +423,7 @@ export async function syncProductsFromMarketProducts(input: {
     upserted: rows.length,
     inserted,
     updated,
-    deactivated: 0,
+    deactivated,
     scopes: [input.scope],
     errors: [],
     stampedAt,
